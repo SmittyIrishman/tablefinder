@@ -642,8 +642,13 @@ export default function App() {
   const [msgText, setMsgText] = useState("");
 
   // Check if user is already logged in when app loads
-  useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+useEffect(() => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (error) {
+        await supabase.auth.signOut();
+        setAuthLoading(false);
+        return;
+      }
       if (session?.user) {
         setAuthUser(session.user);
         await loadProfile(session.user.id);
