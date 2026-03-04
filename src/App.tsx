@@ -666,7 +666,7 @@ export default function App() {
   }, []);
 
   const loadProfile = async (userId) => {
-    const { data, _error } = await supabase.from("players").select("*").eq("user_id", userId).maybeSingle();
+    const { data, } = await supabase.from("players").select("*").eq("user_id", userId).maybeSingle();
     if (data) {
       setMyProfile(data);
       setShowProfile(false);
