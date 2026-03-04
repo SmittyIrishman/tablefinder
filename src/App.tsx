@@ -652,7 +652,7 @@ export default function App() {
     });
 
     // Listen for login/logout events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setAuthUser(session.user);
         await loadProfile(session.user.id);
@@ -666,7 +666,7 @@ export default function App() {
   }, []);
 
   const loadProfile = async (userId) => {
-    const { data, error } = await supabase.from("players").select("*").eq("user_id", userId).maybeSingle();
+    const { data, _error } = await supabase.from("players").select("*").eq("user_id", userId).maybeSingle();
     if (data) {
       setMyProfile(data);
       setShowProfile(false);
