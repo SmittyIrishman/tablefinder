@@ -676,14 +676,16 @@ export default function App() {
     }
   };
 
-  const saveProfile = async (form) => {
+const saveProfile = async (form) => {
     if (!authUser) return;
     const profileData = { ...form, user_id: authUser.id, online: true };
     if (myProfile?.id) {
-      const { data } = await supabase.from("players").update(profileData).eq("id", myProfile.id).select();
+      const { data, error } = await supabase.from("players").update(profileData).eq("id", myProfile.id).select();
+      if (error?.code === "23505") return alert("That name is already taken — please choose another!");
       if (data?.[0]) setMyProfile(data[0]);
     } else {
-      const { data } = await supabase.from("players").insert([profileData]).select();
+      const { data, error } = await supabase.from("players").insert([profileData]).select();
+      if (error?.code === "23505") return alert("That name is already taken — please choose another!");
       if (data?.[0]) setMyProfile(data[0]);
     }
     setShowProfile(false);
