@@ -216,13 +216,31 @@ function ProfileSetup({ existing, onSave }) {
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-4">
+<div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-stone-400 mb-1">Display Name *</label>
           <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
             className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Alex V." />
         </div>
         <div>
+          <label className="block text-sm text-stone-400 mb-1">City / Region *</label>
+          <input value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))}
+            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Austin, TX" />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm text-stone-400 mb-1">Date of Birth * <span className="text-stone-500">(must be 18+)</span></label>
+        <input type="date" value={form.date_of_birth || ""} onChange={e => {
+          const dob = new Date(e.target.value);
+          const today = new Date();
+          const age = today.getFullYear() - dob.getFullYear();
+          const monthDiff = today.getMonth() - dob.getMonth();
+          const isUnder18 = age < 18 || (age === 18 && monthDiff < 0) || (age === 18 && monthDiff === 0 && today.getDate() < dob.getDate());
+          if (isUnder18) alert("You must be 18 or older to use TableFinder.");
+          else setForm(f=>({...f, date_of_birth: e.target.value}));
+        }}
+          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" />
+      </div>
           <label className="block text-sm text-stone-400 mb-1">City / Region *</label>
           <input value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))}
             className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Austin, TX" />
@@ -263,7 +281,7 @@ function ProfileSetup({ existing, onSave }) {
           className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
           placeholder="Tell others what kind of player you are..." />
       </div>
-      <button onClick={handleSave} disabled={!form.name || !form.city || !form.games.length || saving}
+      <button onClick={handleSave} disabled={!form.name || !form.city || !form.games.length || !form.date_of_birth || saving}
         className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
         {saving ? "Saving..." : "Save Profile →"}
       </button>
