@@ -23,20 +23,6 @@ export default async function handler(req: Request) {
         "X-Goog-Api-Key": API_KEY!,
         "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.regularOpeningHours,places.id,places.googleMapsUri",
       },
-      body: JSON.stringify({
-        includedTypes: ["store"],
-        maxResultCount: 15,
-        locationRestriction: {
-          circle: {
-            center: { latitude: lat, longitude: lng },
-            radius: 80000.0
-          }
-        },
-        rankPreference: "DISTANCE",
-        textQuery: "tabletop game store"
-      })
-    }
-  );
 
   const data = await response.json();
   return new Response(JSON.stringify(data), {
