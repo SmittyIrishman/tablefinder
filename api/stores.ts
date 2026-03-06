@@ -14,11 +14,11 @@ export default async function handler(req: Request) {
   const { lat, lng } = await req.json();
   const API_KEY = process.env.GOOGLE_PLACES_API_KEY;
 
-  const response = await fetch(
-    `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=80000&keyword=game+store+tabletop+trading+card&type=store&key=${API_KEY}`
-  );
+  const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=80000&keyword=game+store&key=${API_KEY}`;
 
+  const response = await fetch(url);
   const data = await response.json();
+
   return new Response(JSON.stringify(data), {
     status: 200,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
