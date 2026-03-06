@@ -552,54 +552,44 @@ function StoresTab() {
   const [error, setError] = useState<string|null>(null);
   const [searched, setSearched] = useState(false);
 
-  const findStores = () => {
+  const searchByCoords = async (lat: number, lng: number) => {
+    try {
+      const res = await fetch("/api/stores", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lng })
+      });
+      const data = await res.json();
+      if (data.places && data.places.length > 0) {
+        setStores(data.places);
+        setSearched(true);
+      } else {
+        setError("No stores found nearby. Try searching a nearby city instead.");
+      }
+    } catch {
+      setError("Couldn't fetch stores. Try again!");
+    }
+    setLoading(false);
+  };
+
+  const findByGPS = () => {
     setLoading(true);
     setError(null);
+    setStores([]);
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        const { latitude: lat, longitude: lng } = position.coords;
-        try {
-          const res = await fetch("/api/stores", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ lat, lng })
-          });
-          const data = await res.json();
-          if (data.places && data.places.length > 0) {
-            setStores(data.places);
-            setSearched(true);
-          } else {
-            setError("No stores found nearby. Try searching a nearby city instead.");
-          }
-        setLoading(false);
-      },
-      () => {
-        setError("Location access denied. Please enable location permissions.");
-        setLoading(false);
-      }
+      (position) => searchByCoords(position.coords.latitude, position.coords.longitude),
+      () => { setError("Location access denied. Please enable location permissions."); setLoading(false); }
     );
   };
 
-  const getStoreUrl = (store: any) => {
-    const address = encodeURIComponent(store.vicinity || store.name);
-    return `https://www.google.com/maps/search/?api=1&query=${address}&query_place_id=${store.place_id}`;
-  };
-
-  const renderStars = (rating: number) => {
-    const full = Math.floor(rating);
-    return "⭐".repeat(full) + (rating % 1 >= 0.5 ? "✨" : "");
-  };
+  const renderStars = (rating: number) => "⭐".repeat(Math.floor(rating)) + (rating % 1 >= 0.5 ? "✨" : "");
 
   return (
     <div>
       <div className="bg-stone-800 border border-amber-900 rounded-xl p-5 mb-6">
-        <h3 className="font-bold text-amber-200 mb-1" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>
-          🏪 Find Local Game Stores
-        </h3>
-        <p className="text-sm text-stone-400 mb-4">
-          Discover tabletop game stores, card shops, and hobby stores near you.
-        </p>
-        <button onClick={findStores} disabled={loading}
+        <h3 className="font-bold text-amber-200 mb-1" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>🏪 Find Local Game Stores</h3>
+        <p className="text-sm text-stone-400 mb-4">Discover tabletop game stores, card shops, and hobby stores near you.</p>
+        <button onClick={findByGPS} disabled={loading}
           className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-white font-bold rounded-lg transition-colors">
           {loading ? "🔍 Searching nearby stores..." : "📍 Find Stores Near Me"}
         </button>
@@ -610,7 +600,6 @@ function StoresTab() {
         <div className="text-center text-stone-500 py-16">
           <div className="text-4xl mb-3">🏪</div>
           <p>No game stores found nearby.</p>
-          <p className="text-sm mt-1">Try searching in a different area.</p>
         </div>
       )}
 
@@ -623,16 +612,7 @@ function StoresTab() {
                 <h3 className="font-semibold text-amber-100 mb-1">{store.displayName?.text}</h3>
                 <p className="text-xs text-stone-400 mb-2">📍 {store.formattedAddress}</p>
                 <div className="flex items-center gap-3">
-                  {store.rating && (
-                    <span className="text-xs text-stone-300">
-                      {renderStars(store.rating)} {store.rating} ({store.user_ratings_total} reviews)
-                    </span>
-                  )}
-                  {store.opening_hours && (
-                    <span className={`text-xs font-medium ${store.opening_hours.open_now ? "text-green-400" : "text-red-400"}`}>
-                      {store.opening_hours.open_now ? "Open Now" : "Closed"}
-                    </span>
-                  )}
+                  {store.rating && <span className="text-xs text-stone-300">{renderStars(store.rating)} {store.rating} ({store.userRatingCount} reviews)</span>}
                 </div>
               </div>
               <span className="text-stone-400 text-sm flex-shrink-0">→</span>
@@ -791,11 +771,11 @@ Their profile:
 Other available players:
 ${others.map((p: any) => `- ${p.name} (${p.experience}): plays ${p.games?.join(", ")}. Bio: ${p.bio||"N/A"}`).join("\n")}
 Return a JSON array of the top 3 best player matches. For each match include: name (string), reason (1-2 sentence explanation), compatibility (number 1-100), sharedGames (array of shared game names). Return ONLY the JSON array, no markdown.`;
-try {
-      const res = await fetch("/api/matchmaking", {
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt })
+        body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, messages:[{role:"user",content:prompt}] })
       });
       const data = await res.json();
       const text = data.content?.map((c: any) => c.text||"").join("").replace(/```json|```/g,"").trim();
