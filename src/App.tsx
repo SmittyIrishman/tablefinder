@@ -960,7 +960,6 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(true);
   const [tab, setTab] = useState("players");
   const [showProfile, setShowProfile] = useState(false);
-  const [conversations, setConversations] = useState<any[]>([]);
   const [msgTarget, setMsgTarget] = useState<any>(null);
   const [msgText, setMsgText] = useState("");
 
@@ -1018,15 +1017,19 @@ useEffect(() => {
     setConversations([]);
   };
 
-  const startConversation = (player: any) => {
-    const existing = conversations.find(c => c.playerId === player.id);
-    if (!existing) {
-      setConversations((c: any[]) => [...c, {
-        id: `c-${player.id}`, playerId: player.id, name: player.name, avatar: player.avatar,
-        messages: [{ from: player.id, text: `Hey! I saw your profile. Want to play ${player.games?.[0]}?`, time: "Just now" }]
-      }]);
-    }
+const startConversation = async (player: any) => {
+    if (!myProfile) return;
+    await supabase.from("messages").insert([{
+      sender_id: myProfile.id,
+      receiver_id: player.id,
+      sender_name: myProfile.name,
+      receiver_name: player.name,
+      sender_avatar: myProfile.avatar,
+      receiver_avatar: player.avatar,
+      text: msgText || `Hey! I saw your profile. Want to play ${player.games?.[0]}?`,
+    }]);
     setMsgTarget(null);
+    setMsgText("");
     setTab("messages");
   };
 
