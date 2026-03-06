@@ -57,12 +57,13 @@ function LoadingSpinner() {
 
 // ── Auth Screen ────────────────────────────────────────────────────────────────
 function AuthScreen({ onAuth }) {
-  const [mode, setMode] = useState("signin"); // "signin", "signup", or "reset"
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [message, setMessage] = useState(null);
+const [mode, setMode] = useState("signin");
+const [email, setEmail] = useState("");
+const [password, setPassword] = useState("");
+const [ageConfirmed, setAgeConfirmed] = useState(false);
+const [loading, setLoading] = useState(false);
+const [error, setError] = useState(null);
+const [message, setMessage] = useState(null);
 
   const handleSubmit = async () => {
     setLoading(true);
