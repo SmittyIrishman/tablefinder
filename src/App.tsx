@@ -633,7 +633,6 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
     return `${Math.floor(seconds/86400)}d ago`;
   };
 
-  const allGames = ["All", ...GAMES.ttrpg, ...GAMES.tcg, ...GAMES.wargames];
   const filtered = posts.filter(p => filter === "All" || p.game === filter);
 
   if (loading) return <LoadingSpinner />;
