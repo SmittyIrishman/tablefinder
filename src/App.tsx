@@ -827,7 +827,6 @@ Return a JSON array of the top 3 best player matches. For each match include: na
 
 // ── Messages Tab ───────────────────────────────────────────────────────────────
 function MessagesTab({ myProfile }: { myProfile: any }) {
-  const [conversations, setConversations] = useState<any[]>([]);
   const [active, setActive] = useState<string|null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
