@@ -146,6 +146,24 @@ function AuthScreen({ onAuth }: { onAuth: (user: any) => void }) {
 function ProfileSetup({ existing, onSave }: { existing: any; onSave: (form: any) => Promise<void> }) {
   const [form, setForm] = useState(existing || { name:"", city:"", avatar:"🎲", games:[], experience:"Casual", bio:"", date_of_birth:"" });
   const [saving, setSaving] = useState(false);
+  const [blockedPlayers, setBlockedPlayers] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchBlocked = async () => {
+      if (!existing?.id) return;
+      const { data } = await supabase.from("blocks")
+        .select("blocked_id, players!blocks_blocked_id_fkey(id, name, avatar)")
+        .eq("blocker_id", existing.id);
+      setBlockedPlayers((data || []).map((b: any) => b.players));
+    };
+    fetchBlocked();
+  }, [existing]);
+
+  const unblockPlayer = async (playerId: string) => {
+    if (!existing?.id) return;
+    await supabase.from("blocks").delete().eq("blocker_id", existing.id).eq("blocked_id", playerId);
+    setBlockedPlayers(bp => bp.filter(p => p.id !== playerId));
+  };
   const AVATARS = ["🎲","🧙","⚔️","🐉","🃏","🎭","🦇","🌟","🐙","🔮","⚡","🛡️","🗡️","🏹","🎯","🧌"];
   const toggle = (game: string) => setForm((f: any) => ({...f, games: f.games.includes(game) ? f.games.filter((g: string) => g !== game) : [...f.games, game]}));
 
