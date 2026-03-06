@@ -25,7 +25,7 @@ export default async function handler(req: Request) {
           "X-Goog-FieldMask": "places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.id,places.googleMapsUri",
         },
         body: JSON.stringify({
-          textQuery: "game store near me",
+          textQuery: "game store",
           maxResultCount: 15,
           locationBias: {
             circle: {
