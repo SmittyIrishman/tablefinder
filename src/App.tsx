@@ -643,29 +643,23 @@ export default function App() {
 
   // Check if user is already logged in when app loads
 useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
-      if (error) {
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session) {
+          await supabase.auth.signOut();
+          setAuthLoading(false);
+          return;
+        }
+        setAuthUser(session.user);
+        await loadProfile(session.user.id);
+      } catch (e) {
         await supabase.auth.signOut();
+      } finally {
         setAuthLoading(false);
-        return;
       }
-      if (session?.user) {
-        setAuthUser(session.user);
-        await loadProfile(session.user.id);
-      }
-      setAuthLoading(false);
-    });
-
-    // Listen for login/logout events
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setAuthUser(session.user);
-        await loadProfile(session.user.id);
-      } else {
-        setAuthUser(null);
-        setMyProfile(null);
-      }
-    });
+    };
+    initAuth();
 
     return () => subscription.unsubscribe();
   }, []);
