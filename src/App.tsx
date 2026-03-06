@@ -826,22 +826,88 @@ Return a JSON array of the top 3 best player matches. For each match include: na
 }
 
 // ── Messages Tab ───────────────────────────────────────────────────────────────
-function MessagesTab({ conversations, setConversations }: { conversations: any[]; setConversations: (c: any) => void }) {
+function MessagesTab({ myProfile }: { myProfile: any }) {
+  const [conversations, setConversations] = useState<any[]>([]);
   const [active, setActive] = useState<string|null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  const send = () => {
-    if (!input.trim() || !active) return;
-    setConversations((c: any[]) => c.map(cv => cv.id === active ? {...cv, messages: [...cv.messages, {from:"me", text:input, time:"Just now"}]} : cv));
+  useEffect(() => {
+    if (!myProfile) return;
+    const fetchConversations = async () => {
+      const { data } = await supabase.from("messages")
+        .select("*")
+        .or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`)
+        .order("created_at", { ascending: false });
+
+      if (data) {
+        const convMap: Record<string, any> = {};
+        data.forEach((msg: any) => {
+          const otherId = msg.sender_id === myProfile.id ? msg.receiver_id : msg.sender_id;
+          const otherName = msg.sender_id === myProfile.id ? msg.receiver_name : msg.sender_name;
+          const otherAvatar = msg.sender_id === myProfile.id ? msg.receiver_avatar : msg.sender_avatar;
+          if (!convMap[otherId]) {
+            convMap[otherId] = { id: otherId, name: otherName, avatar: otherAvatar, lastMessage: msg.text, lastTime: msg.created_at };
+          }
+        });
+        setConversations(Object.values(convMap));
+      }
+      setLoading(false);
+    };
+    fetchConversations();
+    const interval = setInterval(fetchConversations, 3000);
+    return () => clearInterval(interval);
+  }, [myProfile]);
+
+  useEffect(() => {
+    if (!active || !myProfile) return;
+    const fetchMessages = async () => {
+      const { data } = await supabase.from("messages")
+        .select("*")
+        .or(`and(sender_id.eq.${myProfile.id},receiver_id.eq.${active}),and(sender_id.eq.${active},receiver_id.eq.${myProfile.id})`)
+        .order("created_at", { ascending: true });
+      setMessages(data || []);
+    };
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 2000);
+    return () => clearInterval(interval);
+  }, [active, myProfile]);
+
+  const send = async () => {
+    if (!input.trim() || !active || !myProfile) return;
+    const activeConv = conversations.find(c => c.id === active);
+    await supabase.from("messages").insert([{
+      sender_id: myProfile.id,
+      receiver_id: active,
+      sender_name: myProfile.name,
+      receiver_name: activeConv?.name,
+      sender_avatar: myProfile.avatar,
+      receiver_avatar: activeConv?.avatar,
+      text: input,
+    }]);
     setInput("");
   };
 
-  const activeConv = conversations.find(c => c.id === active);
+  const formatTime = (timestamp: string) => {
+    const date = new Date(timestamp);
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
+  if (!myProfile) return (
+    <div className="text-center py-16 text-stone-400">
+      <div className="text-4xl mb-4">💬</div>
+      <p>Set up your profile to send messages.</p>
+    </div>
+  );
 
   return (
     <div className="flex gap-3 h-96">
       <div className="w-1/3 space-y-1 overflow-y-auto">
-        {conversations.length === 0 && <p className="text-stone-500 text-sm text-center py-8">No messages yet.<br/>Message a player from the Players tab!</p>}
+        {loading && <p className="text-stone-500 text-sm text-center py-4">Loading...</p>}
+        {!loading && conversations.length === 0 && (
+          <p className="text-stone-500 text-sm text-center py-8">No messages yet.<br/>Message a player from the Players tab!</p>
+        )}
         {conversations.map(c => (
           <button key={c.id} onClick={() => setActive(c.id)}
             className={`w-full text-left p-3 rounded-lg transition-colors ${active===c.id?"bg-amber-900":"bg-stone-800 hover:bg-stone-700"}`}>
@@ -849,32 +915,33 @@ function MessagesTab({ conversations, setConversations }: { conversations: any[]
               <span className="text-lg">{c.avatar}</span>
               <div className="min-w-0">
                 <p className="text-sm font-medium text-amber-100 truncate">{c.name}</p>
-                <p className="text-xs text-stone-400 truncate">{c.messages[c.messages.length-1]?.text}</p>
+                <p className="text-xs text-stone-400 truncate">{c.lastMessage}</p>
               </div>
             </div>
           </button>
         ))}
       </div>
       <div className="flex-1 flex flex-col bg-stone-800 rounded-xl overflow-hidden border border-stone-700">
-        {activeConv ? (
+        {active ? (
           <>
             <div className="p-3 border-b border-stone-700 flex items-center gap-2">
-              <span className="text-lg">{activeConv.avatar}</span>
-              <span className="font-medium text-amber-100 text-sm">{activeConv.name}</span>
+              <span className="text-lg">{conversations.find(c => c.id === active)?.avatar}</span>
+              <span className="font-medium text-amber-100 text-sm">{conversations.find(c => c.id === active)?.name}</span>
             </div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
-              {activeConv.messages.map((m: any, i: number) => (
-                <div key={i} className={`flex ${m.from==="me"?"justify-end":"justify-start"}`}>
-                  <div className={`max-w-xs text-xs px-3 py-2 rounded-2xl ${m.from==="me"?"bg-amber-800 text-amber-50":"bg-stone-700 text-stone-100"}`}>
+              {messages.map((m: any) => (
+                <div key={m.id} className={`flex ${m.sender_id===myProfile.id?"justify-end":"justify-start"}`}>
+                  <div className={`max-w-xs text-xs px-3 py-2 rounded-2xl ${m.sender_id===myProfile.id?"bg-amber-800 text-amber-50":"bg-stone-700 text-stone-100"}`}>
                     <p>{m.text}</p>
-                    <p className={`text-xs mt-1 ${m.from==="me"?"text-amber-300":"text-stone-400"}`}>{m.time}</p>
+                    <p className={`text-xs mt-1 ${m.sender_id===myProfile.id?"text-amber-300":"text-stone-400"}`}>{formatTime(m.created_at)}</p>
                   </div>
                 </div>
               ))}
             </div>
             <div className="p-3 border-t border-stone-700 flex gap-2">
               <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key==="Enter"&&send()}
-                className="flex-1 bg-stone-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-1 focus:ring-amber-500" placeholder="Send a message..." />
+                className="flex-1 bg-stone-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-1 focus:ring-amber-500"
+                placeholder="Send a message..." />
               <button onClick={send} className="px-3 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-lg text-sm transition-colors">→</button>
             </div>
           </>
@@ -1013,8 +1080,7 @@ const TABS = [
         {tab==="events" && <EventsTab myProfile={myProfile} />}
         {tab==="lfg" && <LFGTab myProfile={myProfile} onMessage={setMsgTarget} />}
         {tab==="matchmaking" && <MatchmakingTab myProfile={myProfile} />}
-        {tab==="messages" && <MessagesTab conversations={conversations} setConversations={setConversations} />}
-      </main>
+        {tab==="messages" && <MessagesTab myProfile={myProfile} />}      </main>
       {showProfile && (
         <Modal title={myProfile ? "Edit Profile" : "Create Your Profile"} onClose={() => setShowProfile(false)}>
           <ProfileSetup existing={myProfile} onSave={saveProfile} />
