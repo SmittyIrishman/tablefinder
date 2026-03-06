@@ -565,15 +565,12 @@ function StoresTab() {
             body: JSON.stringify({ lat, lng })
           });
           const data = await res.json();
-          if (data.results) {
-            setStores(data.results.slice(0, 15));
+          if (data.places && data.places.length > 0) {
+            setStores(data.places);
             setSearched(true);
           } else {
-            setError("No stores found nearby.");
+            setError("No stores found nearby. Try searching a nearby city instead.");
           }
-        } catch {
-          setError("Couldn't fetch stores. Try again!");
-        }
         setLoading(false);
       },
       () => {
@@ -619,12 +616,12 @@ function StoresTab() {
 
       <div className="space-y-3">
         {stores.map((store: any) => (
-          <a key={store.place_id} href={getStoreUrl(store)} target="_blank" rel="noopener noreferrer"
+          <a key={store.id} href={store.googleMapsUri} target="_blank" rel="noopener noreferrer"
             className="block bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-amber-100 mb-1">{store.name}</h3>
-                <p className="text-xs text-stone-400 mb-2">📍 {store.vicinity}</p>
+                <h3 className="font-semibold text-amber-100 mb-1">{store.displayName?.text}</h3>
+                <p className="text-xs text-stone-400 mb-2">📍 {store.formattedAddress}</p>
                 <div className="flex items-center gap-3">
                   {store.rating && (
                     <span className="text-xs text-stone-300">
