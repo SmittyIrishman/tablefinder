@@ -249,6 +249,26 @@ function ProfileSetup({ existing, onSave }: { existing: any; onSave: (form: any)
         className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
         {saving ? "Saving..." : "Save Profile →"}
       </button>
+
+      {blockedPlayers.length > 0 && (
+        <div className="border-t border-stone-700 pt-4">
+          <h3 className="text-sm font-medium text-stone-400 mb-3">🚫 Blocked Players</h3>
+          <div className="space-y-2">
+            {blockedPlayers.map(p => (
+              <div key={p.id} className="flex items-center justify-between bg-stone-800 rounded-lg px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <span>{p.avatar}</span>
+                  <span className="text-sm text-stone-300">{p.name}</span>
+                </div>
+                <button onClick={() => unblockPlayer(p.id)}
+                  className="text-xs px-3 py-1 bg-stone-700 hover:bg-amber-800 text-stone-300 hover:text-amber-200 rounded-lg transition-colors">
+                  Unblock
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
