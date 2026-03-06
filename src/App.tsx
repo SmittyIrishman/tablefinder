@@ -725,7 +725,7 @@ export default function App() {
     };
     initAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setAuthUser(session.user);
         await loadProfile(session.user.id);
@@ -734,7 +734,7 @@ export default function App() {
         setMyProfile(null);
       }
     });
-    return () => subscription.unsubscribe();
+    return () => authListener.subscription.unsubscribe();
   }, []);
 
   const loadProfile = async (userId: string) => {
