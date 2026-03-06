@@ -693,17 +693,17 @@ Other available players:
 ${others.map((p: any) => `- ${p.name} (${p.experience}): plays ${p.games?.join(", ")}. Bio: ${p.bio||"N/A"}`).join("\n")}
 Return a JSON array of the top 3 best player matches. For each match include: name (string), reason (1-2 sentence explanation), compatibility (number 1-100), sharedGames (array of shared game names). Return ONLY the JSON array, no markdown.`;
 try {
-      const { data, error } = await supabase.functions.invoke("matchmaking", {
-        body: { prompt }
+      const res = await fetch("https://xiheyqqhjypjqqnqwcqj.supabase.co/functions/v1/matchmaking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ prompt })
       });
-      if (error) throw error;
+      const data = await res.json();
       const text = data.content?.map((c: any) => c.text||"").join("").replace(/```json|```/g,"").trim();
       setMatches(JSON.parse(text));
     } catch {
       setError("Couldn't reach the matchmaking oracle. Try again!");
     }
-    setLoading(false);
-  };
 
   if (!myProfile) return (
     <div className="text-center py-16 text-stone-400">
