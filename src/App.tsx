@@ -545,6 +545,108 @@ function EventsTab({ myProfile }: { myProfile: any }) {
   );
 }
 
+// ── Stores Tab ─────────────────────────────────────────────────────────────────
+function StoresTab() {
+  const [stores, setStores] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string|null>(null);
+  const [searched, setSearched] = useState(false);
+
+  const findStores = () => {
+    setLoading(true);
+    setError(null);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude: lat, longitude: lng } = position.coords;
+        try {
+          const res = await fetch("/api/stores", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lat, lng })
+          });
+          const data = await res.json();
+          if (data.results) {
+            setStores(data.results.slice(0, 15));
+            setSearched(true);
+          } else {
+            setError("No stores found nearby.");
+          }
+        } catch {
+          setError("Couldn't fetch stores. Try again!");
+        }
+        setLoading(false);
+      },
+      () => {
+        setError("Location access denied. Please enable location permissions.");
+        setLoading(false);
+      }
+    );
+  };
+
+  const getStoreUrl = (store: any) => {
+    const address = encodeURIComponent(store.vicinity || store.name);
+    return `https://www.google.com/maps/search/?api=1&query=${address}&query_place_id=${store.place_id}`;
+  };
+
+  const renderStars = (rating: number) => {
+    const full = Math.floor(rating);
+    return "⭐".repeat(full) + (rating % 1 >= 0.5 ? "✨" : "");
+  };
+
+  return (
+    <div>
+      <div className="bg-stone-800 border border-amber-900 rounded-xl p-5 mb-6">
+        <h3 className="font-bold text-amber-200 mb-1" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>
+          🏪 Find Local Game Stores
+        </h3>
+        <p className="text-sm text-stone-400 mb-4">
+          Discover tabletop game stores, card shops, and hobby stores near you.
+        </p>
+        <button onClick={findStores} disabled={loading}
+          className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-white font-bold rounded-lg transition-colors">
+          {loading ? "🔍 Searching nearby stores..." : "📍 Find Stores Near Me"}
+        </button>
+        {error && <p className="text-red-400 text-sm mt-3 text-center">{error}</p>}
+      </div>
+
+      {searched && stores.length === 0 && (
+        <div className="text-center text-stone-500 py-16">
+          <div className="text-4xl mb-3">🏪</div>
+          <p>No game stores found nearby.</p>
+          <p className="text-sm mt-1">Try searching in a different area.</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {stores.map((store: any) => (
+          <a key={store.place_id} href={getStoreUrl(store)} target="_blank" rel="noopener noreferrer"
+            className="block bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <h3 className="font-semibold text-amber-100 mb-1">{store.name}</h3>
+                <p className="text-xs text-stone-400 mb-2">📍 {store.vicinity}</p>
+                <div className="flex items-center gap-3">
+                  {store.rating && (
+                    <span className="text-xs text-stone-300">
+                      {renderStars(store.rating)} {store.rating} ({store.user_ratings_total} reviews)
+                    </span>
+                  )}
+                  {store.opening_hours && (
+                    <span className={`text-xs font-medium ${store.opening_hours.open_now ? "text-green-400" : "text-red-400"}`}>
+                      {store.opening_hours.open_now ? "Open Now" : "Closed"}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <span className="text-stone-400 text-sm flex-shrink-0">→</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── LFG Tab ────────────────────────────────────────────────────────────────────
 function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) => void }) {
   const [posts, setPosts] = useState<any[]>([]);
@@ -954,6 +1056,7 @@ export default function App() {
     {id:"players",label:"Players",icon:"👥"},
     {id:"events",label:"Events",icon:"📅"},
     {id:"lfg",label:"LFG",icon:"📣"},
+    {id:"stores",label:"Stores",icon:"🏪"},
     {id:"matchmaking",label:"Match",icon:"🔮"},
     {id:"messages",label:"Messages",icon:"💬"},
   ];
@@ -999,6 +1102,7 @@ export default function App() {
         {tab==="players" && <PlayersTab myProfile={myProfile} onMessage={setMsgTarget} />}
         {tab==="events" && <EventsTab myProfile={myProfile} />}
         {tab==="lfg" && <LFGTab myProfile={myProfile} onMessage={setMsgTarget} />}
+        {tab==="stores" && <StoresTab />}
         {tab==="matchmaking" && <MatchmakingTab myProfile={myProfile} />}
         {tab==="messages" && <MessagesTab myProfile={myProfile} />}
       </main>
