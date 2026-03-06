@@ -702,6 +702,8 @@ try {
     } catch {
       setError("Couldn't reach the matchmaking oracle. Try again!");
     }
+    setLoading(false);
+  };
 
   if (!myProfile) return (
     <div className="text-center py-16 text-stone-400">
