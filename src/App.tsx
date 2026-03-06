@@ -184,24 +184,26 @@ const [message, setMessage] = useState(null);
 }
 
 // ── Profile Setup ──────────────────────────────────────────────────────────────
+// ── Profile Setup ──────────────────────────────────────────────────────────────
 function ProfileSetup({ existing, onSave }) {
-  const [form, setForm] = useState(existing || { name:"", city:"", avatar:"🎲", games:[], experience:"Casual", bio:"" });
+  const [form, setForm] = useState(existing || { name:"", city:"", avatar:"🎲", games:[], experience:"Casual", bio:"", date_of_birth:"" });
   const [saving, setSaving] = useState(false);
 
-const handleDobChange = (e) => {
-  const dob = new Date(e.target.value);
-  const today = new Date();
-  const age = today.getFullYear() - dob.getFullYear();
-  const monthDiff = today.getMonth() - dob.getMonth();
-  const isUnder18 = age < 18 || (age === 18 && monthDiff < 0) || (age === 18 && monthDiff === 0 && today.getDate() < dob.getDate());
-  if (isUnder18) alert("You must be 18 or older to use TableFinder.");
-  else setForm(f=>({...f, date_of_birth: e.target.value}));
-};
   const AVATARS = ["🎲","🧙","⚔️","🐉","🃏","🎭","🦇","🌟","🐙","🔮","⚡","🛡️","🗡️","🏹","🎯","🧌"];
   const toggle = (game) => setForm(f => ({...f, games: f.games.includes(game) ? f.games.filter(g=>g!==game) : [...f.games, game]}));
 
+  const handleDobChange = (e) => {
+    const dob = new Date(e.target.value);
+    const today = new Date();
+    const age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    const isUnder18 = age < 18 || (age === 18 && monthDiff < 0) || (age === 18 && monthDiff === 0 && today.getDate() < dob.getDate());
+    if (isUnder18) alert("You must be 18 or older to use TableFinder.");
+    else setForm(f=>({...f, date_of_birth: e.target.value}));
+  };
+
   const handleSave = async () => {
-    if (!form.name || !form.city || !form.games.length) return;
+    if (!form.name || !form.city || !form.games.length || !form.date_of_birth) return;
     setSaving(true);
     await onSave(form);
     setSaving(false);
@@ -226,7 +228,7 @@ const handleDobChange = (e) => {
           ))}
         </div>
       </div>
-<div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div>
           <label className="block text-sm text-stone-400 mb-1">Display Name *</label>
           <input value={form.name} onChange={e=>setForm(f=>({...f,name:e.target.value}))}
@@ -240,15 +242,8 @@ const handleDobChange = (e) => {
       </div>
       <div>
         <label className="block text-sm text-stone-400 mb-1">Date of Birth * <span className="text-stone-500">(must be 18+)</span></label>
-<input type="date" value={form.date_of_birth || ""} onChange={handleDobChange}
-  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" />
-        }}
+        <input type="date" value={form.date_of_birth || ""} onChange={handleDobChange}
           className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" />
-      </div>
-          <label className="block text-sm text-stone-400 mb-1">City / Region *</label>
-          <input value={form.city} onChange={e=>setForm(f=>({...f,city:e.target.value}))}
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Austin, TX" />
-        </div>
       </div>
       <div>
         <label className="block text-sm text-stone-400 mb-1">Experience Level</label>
