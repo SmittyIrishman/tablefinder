@@ -728,6 +728,7 @@ const initAuth = async () => {
         setAuthLoading(false);
       }
     };
+    initAuth();
 
 const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
