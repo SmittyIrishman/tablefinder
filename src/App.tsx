@@ -146,24 +146,6 @@ function AuthScreen({ onAuth }: { onAuth: (user: any) => void }) {
 function ProfileSetup({ existing, onSave }: { existing: any; onSave: (form: any) => Promise<void> }) {
   const [form, setForm] = useState(existing || { name:"", city:"", avatar:"🎲", games:[], experience:"Casual", bio:"", date_of_birth:"" });
   const [saving, setSaving] = useState(false);
-  const [blockedPlayers, setBlockedPlayers] = useState<any[]>([]);
-
-  useEffect(() => {
-    const fetchBlocked = async () => {
-      if (!existing?.id) return;
-      const { data } = await supabase.from("blocks")
-        .select("blocked_id, players!blocks_blocked_id_fkey(id, name, avatar)")
-        .eq("blocker_id", existing.id);
-      setBlockedPlayers((data || []).map((b: any) => b.players));
-    };
-    fetchBlocked();
-  }, [existing]);
-
-  const unblockPlayer = async (playerId: string) => {
-    if (!existing?.id) return;
-    await supabase.from("blocks").delete().eq("blocker_id", existing.id).eq("blocked_id", playerId);
-    setBlockedPlayers(bp => bp.filter(p => p.id !== playerId));
-  };
   const AVATARS = ["🎲","🧙","⚔️","🐉","🃏","🎭","🦇","🌟","🐙","🔮","⚡","🛡️","🗡️","🏹","🎯","🧌"];
   const toggle = (game: string) => setForm((f: any) => ({...f, games: f.games.includes(game) ? f.games.filter((g: string) => g !== game) : [...f.games, game]}));
 
@@ -249,26 +231,6 @@ function ProfileSetup({ existing, onSave }: { existing: any; onSave: (form: any)
         className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
         {saving ? "Saving..." : "Save Profile →"}
       </button>
-
-      {blockedPlayers.length > 0 && (
-        <div className="border-t border-stone-700 pt-4">
-          <h3 className="text-sm font-medium text-stone-400 mb-3">🚫 Blocked Players</h3>
-          <div className="space-y-2">
-            {blockedPlayers.map(p => (
-              <div key={p.id} className="flex items-center justify-between bg-stone-800 rounded-lg px-3 py-2">
-                <div className="flex items-center gap-2">
-                  <span>{p.avatar}</span>
-                  <span className="text-sm text-stone-300">{p.name}</span>
-                </div>
-                <button onClick={() => unblockPlayer(p.id)}
-                  className="text-xs px-3 py-1 bg-stone-700 hover:bg-amber-800 text-stone-300 hover:text-amber-200 rounded-lg transition-colors">
-                  Unblock
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -589,7 +551,6 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [filter, setFilter] = useState("All");
   const [form, setForm] = useState({ game:"", title:"", body:"" });
 
   useEffect(() => {
@@ -607,12 +568,8 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
     if (!form.game || !form.title || !myProfile) return;
     setSaving(true);
     const { data } = await supabase.from("lfg_posts").insert([{
-      player_id: myProfile.id,
-      player_name: myProfile.name,
-      player_avatar: myProfile.avatar,
-      game: form.game,
-      title: form.title,
-      body: form.body,
+      player_id: myProfile.id, player_name: myProfile.name, player_avatar: myProfile.avatar,
+      game: form.game, title: form.title, body: form.body,
     }]).select();
     if (data) setPosts(p => [data[0], ...p]);
     setShowCreate(false);
@@ -633,64 +590,41 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
     return `${Math.floor(seconds/86400)}d ago`;
   };
 
-  const filtered = posts.filter(p => filter === "All" || p.game === filter);
-
   if (loading) return <LoadingSpinner />;
 
   return (
     <div>
-      <div className="flex gap-2 mb-4">
-        <button onClick={() => setShowCreate(true)}
-          className="flex-1 py-3 border-2 border-dashed border-stone-600 hover:border-amber-600 text-stone-400 hover:text-amber-400 rounded-xl transition-colors text-sm font-medium">
-          + Post a LFG Request
-        </button>
-      </div>
-
-      <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
-        {["All", "TTRPGs", "TCGs", "Wargames"].map(cat => (
-          <button key={cat} onClick={() => setFilter(cat === "TTRPGs" ? GAMES.ttrpg[0] : cat === "TCGs" ? GAMES.tcg[0] : cat === "Wargames" ? GAMES.wargames[0] : "All")}
-            className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors flex-shrink-0 ${filter === cat ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>
-            {cat}
-          </button>
-        ))}
-      </div>
-
-      {filtered.length === 0 && (
+      <button onClick={() => setShowCreate(true)}
+        className="w-full mb-4 py-3 border-2 border-dashed border-stone-600 hover:border-amber-600 text-stone-400 hover:text-amber-400 rounded-xl transition-colors text-sm font-medium">
+        + Post a LFG Request
+      </button>
+      {posts.length === 0 && (
         <div className="text-center text-stone-500 py-16">
           <div className="text-4xl mb-3">📣</div>
           <p>No LFG posts yet.</p>
           <p className="text-sm mt-1">Be the first to post!</p>
         </div>
       )}
-
       <div className="space-y-3">
-        {filtered.map(post => (
+        {posts.map(post => (
           <div key={post.id} className="bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
             <div className="flex items-start gap-3">
               <AvatarEl emoji={post.player_avatar || "🎲"} />
               <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <div>
-                    <span className="font-semibold text-amber-100 text-sm">{post.title}</span>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <GameTag game={post.game} />
-                      <span className="text-xs text-stone-500">by {post.player_name} • {timeAgo(post.created_at)}</span>
-                    </div>
-                  </div>
+                <span className="font-semibold text-amber-100 text-sm">{post.title}</span>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <GameTag game={post.game} />
+                  <span className="text-xs text-stone-500">by {post.player_name} • {timeAgo(post.created_at)}</span>
                 </div>
                 {post.body && <p className="text-xs text-stone-400 mt-2">{post.body}</p>}
                 <div className="flex gap-2 mt-3">
                   {myProfile && post.player_id !== myProfile.id && (
                     <button onClick={() => onMessage({ id: post.player_id, name: post.player_name, avatar: post.player_avatar, games: [post.game] })}
-                      className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg transition-colors">
-                      Reply
-                    </button>
+                      className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg transition-colors">Reply</button>
                   )}
                   {myProfile && post.player_id === myProfile.id && (
                     <button onClick={() => deletePost(post.id)}
-                      className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors">
-                      Delete
-                    </button>
+                      className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors">Delete</button>
                   )}
                 </div>
               </div>
@@ -698,7 +632,6 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
           </div>
         ))}
       </div>
-
       {showCreate && (
         <Modal title="Post a LFG Request" onClose={() => setShowCreate(false)}>
           <div className="space-y-4">
@@ -707,9 +640,7 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
               <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
                 {[...GAMES.ttrpg, ...GAMES.tcg, ...GAMES.wargames].map(g => (
                   <button key={g} onClick={() => setForm(f => ({...f, game:g}))}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.game===g ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>
-                    {g}
-                  </button>
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.game===g ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>
                 ))}
               </div>
             </div>
@@ -827,6 +758,7 @@ Return a JSON array of the top 3 best player matches. For each match include: na
 
 // ── Messages Tab ───────────────────────────────────────────────────────────────
 function MessagesTab({ myProfile }: { myProfile: any }) {
+  const [conversations, setConversations] = useState<any[]>([]);
   const [active, setActive] = useState<string|null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState("");
@@ -839,7 +771,6 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
         .select("*")
         .or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`)
         .order("created_at", { ascending: false });
-
       if (data) {
         const convMap: Record<string, any> = {};
         data.forEach((msg: any) => {
@@ -847,7 +778,7 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
           const otherName = msg.sender_id === myProfile.id ? msg.receiver_name : msg.sender_name;
           const otherAvatar = msg.sender_id === myProfile.id ? msg.receiver_avatar : msg.sender_avatar;
           if (!convMap[otherId]) {
-            convMap[otherId] = { id: otherId, name: otherName, avatar: otherAvatar, lastMessage: msg.text, lastTime: msg.created_at };
+            convMap[otherId] = { id: otherId, name: otherName, avatar: otherAvatar, lastMessage: msg.text };
           }
         });
         setConversations(Object.values(convMap));
@@ -877,21 +808,15 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
     if (!input.trim() || !active || !myProfile) return;
     const activeConv = conversations.find(c => c.id === active);
     await supabase.from("messages").insert([{
-      sender_id: myProfile.id,
-      receiver_id: active,
-      sender_name: myProfile.name,
-      receiver_name: activeConv?.name,
-      sender_avatar: myProfile.avatar,
-      receiver_avatar: activeConv?.avatar,
+      sender_id: myProfile.id, receiver_id: active,
+      sender_name: myProfile.name, receiver_name: activeConv?.name,
+      sender_avatar: myProfile.avatar, receiver_avatar: activeConv?.avatar,
       text: input,
     }]);
     setInput("");
   };
 
-  const formatTime = (timestamp: string) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  };
+  const formatTime = (timestamp: string) => new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
   if (!myProfile) return (
     <div className="text-center py-16 text-stone-400">
@@ -904,9 +829,7 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
     <div className="flex gap-3 h-96">
       <div className="w-1/3 space-y-1 overflow-y-auto">
         {loading && <p className="text-stone-500 text-sm text-center py-4">Loading...</p>}
-        {!loading && conversations.length === 0 && (
-          <p className="text-stone-500 text-sm text-center py-8">No messages yet.<br/>Message a player from the Players tab!</p>
-        )}
+        {!loading && conversations.length === 0 && <p className="text-stone-500 text-sm text-center py-8">No messages yet.<br/>Message a player from the Players tab!</p>}
         {conversations.map(c => (
           <button key={c.id} onClick={() => setActive(c.id)}
             className={`w-full text-left p-3 rounded-lg transition-colors ${active===c.id?"bg-amber-900":"bg-stone-800 hover:bg-stone-700"}`}>
@@ -939,8 +862,7 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
             </div>
             <div className="p-3 border-t border-stone-700 flex gap-2">
               <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key==="Enter"&&send()}
-                className="flex-1 bg-stone-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-1 focus:ring-amber-500"
-                placeholder="Send a message..." />
+                className="flex-1 bg-stone-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-1 focus:ring-amber-500" placeholder="Send a message..." />
               <button onClick={send} className="px-3 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-lg text-sm transition-colors">→</button>
             </div>
           </>
@@ -960,29 +882,37 @@ export default function App() {
   const [tab, setTab] = useState("players");
   const [showProfile, setShowProfile] = useState(false);
   const [msgTarget, setMsgTarget] = useState<any>(null);
-  const [conversations, setConversations] = useState<any[]>([]);
   const [msgText, setMsgText] = useState("");
 
-useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error || !session) {
+          await supabase.auth.signOut();
+          setAuthLoading(false);
+          return;
+        }
         setAuthUser(session.user);
-        loadProfile(session.user.id).finally(() => setAuthLoading(false));
-      } else {
+        await loadProfile(session.user.id);
+      } catch {
+        await supabase.auth.signOut();
+      } finally {
         setAuthLoading(false);
       }
-    }).catch(() => setAuthLoading(false));
+    };
+    initAuth();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setAuthUser(session.user);
-        loadProfile(session.user.id);
+        await loadProfile(session.user.id);
       } else {
         setAuthUser(null);
         setMyProfile(null);
       }
     });
-    return () => authListener.subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadProfile = async (userId: string) => {
@@ -1014,18 +944,14 @@ useEffect(() => {
     await supabase.auth.signOut();
     setAuthUser(null);
     setMyProfile(null);
-    setConversations([]);
   };
 
-const startConversation = async (player: any) => {
+  const startConversation = async (player: any) => {
     if (!myProfile) return;
     await supabase.from("messages").insert([{
-      sender_id: myProfile.id,
-      receiver_id: player.id,
-      sender_name: myProfile.name,
-      receiver_name: player.name,
-      sender_avatar: myProfile.avatar,
-      receiver_avatar: player.avatar,
+      sender_id: myProfile.id, receiver_id: player.id,
+      sender_name: myProfile.name, receiver_name: player.name,
+      sender_avatar: myProfile.avatar, receiver_avatar: player.avatar,
       text: msgText || `Hey! I saw your profile. Want to play ${player.games?.[0]}?`,
     }]);
     setMsgTarget(null);
@@ -1033,7 +959,7 @@ const startConversation = async (player: any) => {
     setTab("messages");
   };
 
-const TABS = [
+  const TABS = [
     {id:"players",label:"Players",icon:"👥"},
     {id:"events",label:"Events",icon:"📅"},
     {id:"lfg",label:"LFG",icon:"📣"},
@@ -1083,7 +1009,8 @@ const TABS = [
         {tab==="events" && <EventsTab myProfile={myProfile} />}
         {tab==="lfg" && <LFGTab myProfile={myProfile} onMessage={setMsgTarget} />}
         {tab==="matchmaking" && <MatchmakingTab myProfile={myProfile} />}
-        {tab==="messages" && <MessagesTab myProfile={myProfile} />}      </main>
+        {tab==="messages" && <MessagesTab myProfile={myProfile} />}
+      </main>
       {showProfile && (
         <Modal title={myProfile ? "Edit Profile" : "Create Your Profile"} onClose={() => setShowProfile(false)}>
           <ProfileSetup existing={myProfile} onSave={saveProfile} />
