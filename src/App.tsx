@@ -725,18 +725,6 @@ export default function App() {
     };
     initAuth();
 
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setAuthUser(session.user);
-        await loadProfile(session.user.id);
-      } else {
-        setAuthUser(null);
-        setMyProfile(null);
-      }
-    });
-    return () => authListener.subscription.unsubscribe();
-  }, []);
-
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setAuthUser(session.user);
