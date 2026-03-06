@@ -187,6 +187,16 @@ const [message, setMessage] = useState(null);
 function ProfileSetup({ existing, onSave }) {
   const [form, setForm] = useState(existing || { name:"", city:"", avatar:"🎲", games:[], experience:"Casual", bio:"" });
   const [saving, setSaving] = useState(false);
+
+const handleDobChange = (e) => {
+  const dob = new Date(e.target.value);
+  const today = new Date();
+  const age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  const isUnder18 = age < 18 || (age === 18 && monthDiff < 0) || (age === 18 && monthDiff === 0 && today.getDate() < dob.getDate());
+  if (isUnder18) alert("You must be 18 or older to use TableFinder.");
+  else setForm(f=>({...f, date_of_birth: e.target.value}));
+};
   const AVATARS = ["🎲","🧙","⚔️","🐉","🃏","🎭","🦇","🌟","🐙","🔮","⚡","🛡️","🗡️","🏹","🎯","🧌"];
   const toggle = (game) => setForm(f => ({...f, games: f.games.includes(game) ? f.games.filter(g=>g!==game) : [...f.games, game]}));
 
@@ -230,14 +240,8 @@ function ProfileSetup({ existing, onSave }) {
       </div>
       <div>
         <label className="block text-sm text-stone-400 mb-1">Date of Birth * <span className="text-stone-500">(must be 18+)</span></label>
-        <input type="date" value={form.date_of_birth || ""} onChange={e => {
-          const dob = new Date(e.target.value);
-          const today = new Date();
-          const age = today.getFullYear() - dob.getFullYear();
-          const monthDiff = today.getMonth() - dob.getMonth();
-          const isUnder18 = age < 18 || (age === 18 && monthDiff < 0) || (age === 18 && monthDiff === 0 && today.getDate() < dob.getDate());
-          if (isUnder18) alert("You must be 18 or older to use TableFinder.");
-          else setForm(f=>({...f, date_of_birth: e.target.value}));
+<input type="date" value={form.date_of_birth || ""} onChange={handleDobChange}
+  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" />
         }}
           className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" />
       </div>
