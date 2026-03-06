@@ -884,7 +884,7 @@ export default function App() {
   const [msgTarget, setMsgTarget] = useState<any>(null);
   const [msgText, setMsgText] = useState("");
 
-useEffect(() => {
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         setAuthUser(session.user);
@@ -906,19 +906,7 @@ useEffect(() => {
     return () => authListener.subscription.unsubscribe();
   }, []);
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (session?.user) {
-        setAuthUser(session.user);
-        await loadProfile(session.user.id);
-      } else {
-        setAuthUser(null);
-        setMyProfile(null);
-      }
-    });
-    return () => subscription.unsubscribe();
-  }, []);
-
-  const loadProfile = async (userId: string) => {
+  const loadProfile = async (userId: string): Promise<void> => {
     try {
       const { data } = await supabase.from("players").select("*").eq("user_id", userId).maybeSingle();
       if (data) { setMyProfile(data); setShowProfile(false); }
