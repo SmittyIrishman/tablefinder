@@ -706,24 +706,27 @@ export default function App() {
   const [msgTarget, setMsgTarget] = useState<any>(null);
   const [msgText, setMsgText] = useState("");
 
-  useEffect(() => {
-    const initAuth = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error || !session) {
-          await supabase.auth.signOut();
-          setAuthLoading(false);
-          return;
-        }
+useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
         setAuthUser(session.user);
-        await loadProfile(session.user.id);
-      } catch {
-        await supabase.auth.signOut();
-      } finally {
+        loadProfile(session.user.id).finally(() => setAuthLoading(false));
+      } else {
         setAuthLoading(false);
       }
-    };
-    initAuth();
+    }).catch(() => setAuthLoading(false));
+
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        setAuthUser(session.user);
+        loadProfile(session.user.id);
+      } else {
+        setAuthUser(null);
+        setMyProfile(null);
+      }
+    });
+    return () => authListener.subscription.unsubscribe();
+  }, []);
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
