@@ -583,6 +583,160 @@ function EventsTab({ myProfile }: { myProfile: any }) {
   );
 }
 
+// ── LFG Tab ────────────────────────────────────────────────────────────────────
+function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) => void }) {
+  const [posts, setPosts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [filter, setFilter] = useState("All");
+  const [form, setForm] = useState({ game:"", title:"", body:"" });
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      const { data } = await supabase.from("lfg_posts").select("*").order("created_at", { ascending: false });
+      setPosts(data || []);
+      setLoading(false);
+    };
+    fetchPosts();
+    const interval = setInterval(fetchPosts, 3000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const createPost = async () => {
+    if (!form.game || !form.title || !myProfile) return;
+    setSaving(true);
+    const { data } = await supabase.from("lfg_posts").insert([{
+      player_id: myProfile.id,
+      player_name: myProfile.name,
+      player_avatar: myProfile.avatar,
+      game: form.game,
+      title: form.title,
+      body: form.body,
+    }]).select();
+    if (data) setPosts(p => [data[0], ...p]);
+    setShowCreate(false);
+    setForm({ game:"", title:"", body:"" });
+    setSaving(false);
+  };
+
+  const deletePost = async (postId: string) => {
+    await supabase.from("lfg_posts").delete().eq("id", postId);
+    setPosts(p => p.filter(post => post.id !== postId));
+  };
+
+  const timeAgo = (timestamp: string) => {
+    const seconds = Math.floor((new Date().getTime() - new Date(timestamp).getTime()) / 1000);
+    if (seconds < 60) return "just now";
+    if (seconds < 3600) return `${Math.floor(seconds/60)}m ago`;
+    if (seconds < 86400) return `${Math.floor(seconds/3600)}h ago`;
+    return `${Math.floor(seconds/86400)}d ago`;
+  };
+
+  const allGames = ["All", ...GAMES.ttrpg, ...GAMES.tcg, ...GAMES.wargames];
+  const filtered = posts.filter(p => filter === "All" || p.game === filter);
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-4">
+        <button onClick={() => setShowCreate(true)}
+          className="flex-1 py-3 border-2 border-dashed border-stone-600 hover:border-amber-600 text-stone-400 hover:text-amber-400 rounded-xl transition-colors text-sm font-medium">
+          + Post a LFG Request
+        </button>
+      </div>
+
+      <div className="flex gap-2 overflow-x-auto pb-2 mb-4">
+        {["All", "TTRPGs", "TCGs", "Wargames"].map(cat => (
+          <button key={cat} onClick={() => setFilter(cat === "TTRPGs" ? GAMES.ttrpg[0] : cat === "TCGs" ? GAMES.tcg[0] : cat === "Wargames" ? GAMES.wargames[0] : "All")}
+            className={`text-xs px-3 py-1.5 rounded-full border whitespace-nowrap transition-colors flex-shrink-0 ${filter === cat ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>
+            {cat}
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 && (
+        <div className="text-center text-stone-500 py-16">
+          <div className="text-4xl mb-3">📣</div>
+          <p>No LFG posts yet.</p>
+          <p className="text-sm mt-1">Be the first to post!</p>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {filtered.map(post => (
+          <div key={post.id} className="bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
+            <div className="flex items-start gap-3">
+              <AvatarEl emoji={post.player_avatar || "🎲"} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div>
+                    <span className="font-semibold text-amber-100 text-sm">{post.title}</span>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <GameTag game={post.game} />
+                      <span className="text-xs text-stone-500">by {post.player_name} • {timeAgo(post.created_at)}</span>
+                    </div>
+                  </div>
+                </div>
+                {post.body && <p className="text-xs text-stone-400 mt-2">{post.body}</p>}
+                <div className="flex gap-2 mt-3">
+                  {myProfile && post.player_id !== myProfile.id && (
+                    <button onClick={() => onMessage({ id: post.player_id, name: post.player_name, avatar: post.player_avatar, games: [post.game] })}
+                      className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg transition-colors">
+                      Reply
+                    </button>
+                  )}
+                  {myProfile && post.player_id === myProfile.id && (
+                    <button onClick={() => deletePost(post.id)}
+                      className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors">
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {showCreate && (
+        <Modal title="Post a LFG Request" onClose={() => setShowCreate(false)}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm text-stone-400 mb-2">Game *</label>
+              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
+                {[...GAMES.ttrpg, ...GAMES.tcg, ...GAMES.wargames].map(g => (
+                  <button key={g} onClick={() => setForm(f => ({...f, game:g}))}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.game===g ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-1">Title *</label>
+              <input value={form.title} onChange={e => setForm(f => ({...f,title:e.target.value}))}
+                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none"
+                placeholder="e.g. Looking for 2 players for D&D campaign" />
+            </div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-1">Details</label>
+              <textarea value={form.body} onChange={e => setForm(f => ({...f,body:e.target.value}))} rows={4}
+                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
+                placeholder="Describe what you're looking for, schedule, experience level, etc." />
+            </div>
+            <button onClick={createPost} disabled={!form.game || !form.title || saving}
+              className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">
+              {saving ? "Posting..." : "Post LFG Request"}
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
 // ── Matchmaking Tab ────────────────────────────────────────────────────────────
 function MatchmakingTab({ myProfile }: { myProfile: any }) {
   const [loading, setLoading] = useState(false);
@@ -810,9 +964,10 @@ useEffect(() => {
     setTab("messages");
   };
 
-  const TABS = [
+const TABS = [
     {id:"players",label:"Players",icon:"👥"},
     {id:"events",label:"Events",icon:"📅"},
+    {id:"lfg",label:"LFG",icon:"📣"},
     {id:"matchmaking",label:"Match",icon:"🔮"},
     {id:"messages",label:"Messages",icon:"💬"},
   ];
@@ -857,6 +1012,7 @@ useEffect(() => {
       <main className="max-w-2xl mx-auto px-4 py-5">
         {tab==="players" && <PlayersTab myProfile={myProfile} onMessage={setMsgTarget} />}
         {tab==="events" && <EventsTab myProfile={myProfile} />}
+        {tab==="lfg" && <LFGTab myProfile={myProfile} onMessage={setMsgTarget} />}
         {tab==="matchmaking" && <MatchmakingTab myProfile={myProfile} />}
         {tab==="messages" && <MessagesTab conversations={conversations} setConversations={setConversations} />}
       </main>
