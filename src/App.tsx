@@ -707,22 +707,17 @@ export default function App() {
   const [msgText, setMsgText] = useState("");
 
   useEffect(() => {
-const initAuth = async () => {
+    const initAuth = async () => {
       try {
-        console.log("Starting auth check...");
         const { data: { session }, error } = await supabase.auth.getSession();
-        console.log("Session result:", session ? "found" : "not found", error ? "error: " + error.message : "no error");
         if (error || !session) {
           await supabase.auth.signOut();
           setAuthLoading(false);
           return;
         }
         setAuthUser(session.user);
-        console.log("Loading profile for:", session.user.id);
         await loadProfile(session.user.id);
-        console.log("Profile loaded");
-      } catch (e: any) {
-        console.log("Auth error:", e.message);
+      } catch {
         await supabase.auth.signOut();
       } finally {
         setAuthLoading(false);
@@ -741,7 +736,8 @@ const initAuth = async () => {
     });
     return () => authListener.subscription.unsubscribe();
   }, []);
-const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
         setAuthUser(session.user);
         await loadProfile(session.user.id);
@@ -750,7 +746,7 @@ const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, se
         setMyProfile(null);
       }
     });
-    return () => authListener.subscription.unsubscribe();
+    return () => subscription.unsubscribe();
   }, []);
 
   const loadProfile = async (userId: string) => {
