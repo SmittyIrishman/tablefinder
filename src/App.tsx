@@ -146,10 +146,19 @@ const [message, setMessage] = useState(null);
               <div className="bg-green-900/40 border border-green-700 rounded-lg px-3 py-2 text-green-300 text-sm">{message}</div>
             )}
 
-            <button onClick={handleSubmit} disabled={!email || (!password && mode !== "reset") || loading}
-              className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
-              {loading ? "Please wait..." : mode === "reset" ? "Send Reset Email" : mode === "signup" ? "Create Account →" : "Sign In →"}
-            </button>
+            {mode === "signup" && (
+  <div className="flex items-start gap-3">
+    <input type="checkbox" id="ageConfirm" checked={ageConfirmed} onChange={e => setAgeConfirmed(e.target.checked)}
+      className="mt-1 accent-amber-500 w-4 h-4 flex-shrink-0" />
+    <label htmlFor="ageConfirm" className="text-sm text-stone-400 cursor-pointer">
+      I confirm that I am <span className="text-amber-300 font-medium">18 years of age or older</span>
+    </label>
+  </div>
+)}
+<button onClick={handleSubmit} disabled={!email || (!password && mode !== "reset") || loading || (mode === "signup" && !ageConfirmed)}
+  className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
+  {loading ? "Please wait..." : mode === "reset" ? "Send Reset Email" : mode === "signup" ? "Create Account →" : "Sign In →"}
+</button>
 
             {mode === "signin" && (
               <button onClick={() => { setMode("reset"); setError(null); setMessage(null); }}
