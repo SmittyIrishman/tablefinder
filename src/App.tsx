@@ -960,6 +960,7 @@ export default function App() {
   const [tab, setTab] = useState("players");
   const [showProfile, setShowProfile] = useState(false);
   const [msgTarget, setMsgTarget] = useState<any>(null);
+  const [conversations, setConversations] = useState<any[]>([]);
   const [msgText, setMsgText] = useState("");
 
 useEffect(() => {
