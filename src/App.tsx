@@ -707,23 +707,27 @@ export default function App() {
   const [msgText, setMsgText] = useState("");
 
   useEffect(() => {
-    const initAuth = async () => {
+const initAuth = async () => {
       try {
+        console.log("Starting auth check...");
         const { data: { session }, error } = await supabase.auth.getSession();
+        console.log("Session result:", session ? "found" : "not found", error ? "error: " + error.message : "no error");
         if (error || !session) {
           await supabase.auth.signOut();
           setAuthLoading(false);
           return;
         }
         setAuthUser(session.user);
+        console.log("Loading profile for:", session.user.id);
         await loadProfile(session.user.id);
-      } catch {
+        console.log("Profile loaded");
+      } catch (e: any) {
+        console.log("Auth error:", e.message);
         await supabase.auth.signOut();
       } finally {
         setAuthLoading(false);
       }
     };
-    initAuth();
 
 const { data: authListener } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session?.user) {
