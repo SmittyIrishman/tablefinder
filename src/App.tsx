@@ -288,12 +288,18 @@ function ProfileSetup({ existing, onSave }) {
 }
 
 // ── Players Tab ────────────────────────────────────────────────────────────────
+// ── Players Tab ────────────────────────────────────────────────────────────────
 function PlayersTab({ myProfile, onMessage }) {
   const [players, setPlayers] = useState([]);
   const [ratings, setRatings] = useState({});
   const [myRatings, setMyRatings] = useState({});
+  const [blockedIds, setBlockedIds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [reportTarget, setReportTarget] = useState(null);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
+  const [reportSaving, setReportSaving] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -312,6 +318,12 @@ function PlayersTab({ myProfile, onMessage }) {
         setRatings(averages);
         setMyRatings(mine);
       }
+
+      if (myProfile) {
+        const { data: blockData } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", myProfile.id);
+        setBlockedIds((blockData || []).map(b => b.blocked_id));
+      }
+
       setLoading(false);
     };
     fetchData();
@@ -322,11 +334,38 @@ function PlayersTab({ myProfile, onMessage }) {
   const ratePlayer = async (playerId, score) => {
     if (!myProfile) return;
     await supabase.from("ratings").upsert({
-      player_id: playerId,
-      rater_id: myProfile.id,
-      score
+      player_id: playerId, rater_id: myProfile.id, score
     }, { onConflict: "player_id,rater_id" });
     setMyRatings(r => ({...r, [playerId]: score}));
+  };
+
+  const blockPlayer = async (playerId) => {
+    if (!myProfile) return;
+    const isBlocked = blockedIds.includes(playerId);
+    if (isBlocked) {
+      await supabase.from("blocks").delete().eq("blocker_id", myProfile.id).eq("blocked_id", playerId);
+      setBlockedIds(ids => ids.filter(id => id !== playerId));
+    } else {
+      await supabase.from("blocks").insert([{ blocker_id: myProfile.id, blocked_id: playerId }]);
+      setBlockedIds(ids => [...ids, playerId]);
+    }
+  };
+
+  const submitReport = async () => {
+    if (!myProfile || !reportTarget || !reportReason) return;
+    setReportSaving(true);
+    await supabase.from("reports").insert([{
+      reporter_id: myProfile.id,
+      reported_id: reportTarget.id,
+      reason: reportReason,
+      details: reportDetails,
+      status: "pending"
+    }]);
+    setReportTarget(null);
+    setReportReason("");
+    setReportDetails("");
+    setReportSaving(false);
+    alert("Report submitted. Thank you for helping keep TableFinder safe.");
   };
 
   const getAverage = (playerId) => {
@@ -337,9 +376,12 @@ function PlayersTab({ myProfile, onMessage }) {
 
   const filtered = players
     .filter(p => p.user_id !== myProfile?.user_id)
+    .filter(p => !blockedIds.includes(p.id))
     .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.games?.some(g => g.toLowerCase().includes(search.toLowerCase())));
 
   if (loading) return <LoadingSpinner />;
+
+  const REPORT_REASONS = ["Harassment", "Inappropriate behavior", "Spam", "Underage user", "Other"];
 
   return (
     <div>
@@ -384,15 +426,55 @@ function PlayersTab({ myProfile, onMessage }) {
                     {!avg && <span className="text-xs text-stone-500">No ratings yet</span>}
                   </div>
                 </div>
-                <button onClick={() => onMessage(p)}
-                  className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-amber-800 text-stone-200 rounded-lg transition-colors whitespace-nowrap">
-                  Message
-                </button>
+                <div className="flex flex-col gap-1.5">
+                  <button onClick={() => onMessage(p)}
+                    className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-amber-800 text-stone-200 rounded-lg transition-colors whitespace-nowrap">
+                    Message
+                  </button>
+                  <button onClick={() => blockPlayer(p.id)}
+                    className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors whitespace-nowrap">
+                    {blockedIds.includes(p.id) ? "Unblock" : "Block"}
+                  </button>
+                  <button onClick={() => setReportTarget(p)}
+                    className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-orange-900 text-stone-400 hover:text-orange-300 rounded-lg transition-colors whitespace-nowrap">
+                    Report
+                  </button>
+                </div>
               </div>
             </div>
           );
         })}
       </div>
+
+      {reportTarget && (
+        <Modal title={`Report ${reportTarget.name}`} onClose={() => setReportTarget(null)}>
+          <div className="space-y-4">
+            <p className="text-sm text-stone-400">Help keep TableFinder safe by reporting players who violate our community standards.</p>
+            <div>
+              <label className="block text-sm text-stone-400 mb-2">Reason *</label>
+              <div className="flex flex-wrap gap-2">
+                {REPORT_REASONS.map(r => (
+                  <button key={r} onClick={() => setReportReason(r)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${reportReason === r ? "bg-red-900 border-red-600 text-red-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-1">Additional details</label>
+              <textarea value={reportDetails} onChange={e => setReportDetails(e.target.value)} rows={3}
+                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
+                placeholder="Describe what happened..." />
+            </div>
+            <p className="text-xs text-stone-500">Your report is anonymous. Our team will review it and take appropriate action.</p>
+            <button onClick={submitReport} disabled={!reportReason || reportSaving}
+              className="w-full py-3 bg-red-800 hover:bg-red-700 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">
+              {reportSaving ? "Submitting..." : "Submit Report"}
+            </button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
