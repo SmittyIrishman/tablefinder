@@ -661,7 +661,7 @@ useEffect(() => {
     };
     initAuth();
 
-    return () => subscription.unsubscribe();
+   return () => {};
   }, []);
 
   const loadProfile = async (userId) => {
