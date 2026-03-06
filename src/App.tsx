@@ -184,7 +184,6 @@ const [message, setMessage] = useState(null);
 }
 
 // ── Profile Setup ──────────────────────────────────────────────────────────────
-// ── Profile Setup ──────────────────────────────────────────────────────────────
 function ProfileSetup({ existing, onSave }) {
   const [form, setForm] = useState(existing || { name:"", city:"", avatar:"🎲", games:[], experience:"Casual", bio:"", date_of_birth:"" });
   const [saving, setSaving] = useState(false);
@@ -291,19 +290,50 @@ function ProfileSetup({ existing, onSave }) {
 // ── Players Tab ────────────────────────────────────────────────────────────────
 function PlayersTab({ myProfile, onMessage }) {
   const [players, setPlayers] = useState([]);
+  const [ratings, setRatings] = useState({});
+  const [myRatings, setMyRatings] = useState({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    const fetchPlayers = async () => {
-      const { data, error } = await supabase.from("players").select("*").order("created_at", { ascending: false });
-      if (!error) setPlayers(data || []);
+    const fetchData = async () => {
+      const { data: playerData } = await supabase.from("players").select("*").order("created_at", { ascending: false });
+      setPlayers(playerData || []);
+
+      const { data: ratingData } = await supabase.from("ratings").select("*");
+      if (ratingData) {
+        const averages = {};
+        const mine = {};
+        ratingData.forEach(r => {
+          if (!averages[r.player_id]) averages[r.player_id] = [];
+          averages[r.player_id].push(r.score);
+          if (myProfile && r.rater_id === myProfile.id) mine[r.player_id] = r.score;
+        });
+        setRatings(averages);
+        setMyRatings(mine);
+      }
       setLoading(false);
     };
-    fetchPlayers();
-    const interval = setInterval(fetchPlayers, 3000);
+    fetchData();
+    const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [myProfile]);
+
+  const ratePlayer = async (playerId, score) => {
+    if (!myProfile) return;
+    await supabase.from("ratings").upsert({
+      player_id: playerId,
+      rater_id: myProfile.id,
+      score
+    }, { onConflict: "player_id,rater_id" });
+    setMyRatings(r => ({...r, [playerId]: score}));
+  };
+
+  const getAverage = (playerId) => {
+    const r = ratings[playerId];
+    if (!r || r.length === 0) return null;
+    return (r.reduce((a, b) => a + b, 0) / r.length).toFixed(1);
+  };
 
   const filtered = players
     .filter(p => p.user_id !== myProfile?.user_id)
@@ -324,28 +354,44 @@ function PlayersTab({ myProfile, onMessage }) {
         </div>
       )}
       <div className="space-y-3">
-        {filtered.map(p => (
-          <div key={p.id} className="bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
-            <div className="flex items-start gap-3">
-              <AvatarEl emoji={p.avatar} online={p.online} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-semibold text-amber-100">{p.name}</span>
-                  <span className="text-xs text-stone-500">{p.experience}</span>
+        {filtered.map(p => {
+          const avg = getAverage(p.id);
+          const myScore = myRatings[p.id] || 0;
+          return (
+            <div key={p.id} className="bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
+              <div className="flex items-start gap-3">
+                <AvatarEl emoji={p.avatar} online={p.online} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-semibold text-amber-100">{p.name}</span>
+                    <span className="text-xs text-stone-500">{p.experience}</span>
+                  </div>
+                  <p className="text-xs text-stone-400 mb-2">📍 {p.city}</p>
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {p.games?.map(g => <GameTag key={g} game={g} />)}
+                  </div>
+                  {p.bio && <p className="text-xs text-stone-400 italic mb-2">"{p.bio}"</p>}
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1">
+                      {[1,2,3,4,5].map(n => (
+                        <button key={n} onClick={() => myProfile && ratePlayer(p.id, n)}
+                          className={`text-lg transition-transform hover:scale-125 ${myProfile ? "cursor-pointer" : "cursor-default"} ${myScore >= n ? "opacity-100" : "opacity-30"}`}>
+                          🎲
+                        </button>
+                      ))}
+                    </div>
+                    {avg && <span className="text-xs text-amber-400">{avg} avg ({ratings[p.id]?.length} {ratings[p.id]?.length === 1 ? "rating" : "ratings"})</span>}
+                    {!avg && <span className="text-xs text-stone-500">No ratings yet</span>}
+                  </div>
                 </div>
-                <p className="text-xs text-stone-400 mb-2">📍 {p.city}</p>
-                <div className="flex flex-wrap gap-1 mb-2">
-                  {p.games?.map(g => <GameTag key={g} game={g} />)}
-                </div>
-                {p.bio && <p className="text-xs text-stone-400 italic">"{p.bio}"</p>}
+                <button onClick={() => onMessage(p)}
+                  className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-amber-800 text-stone-200 rounded-lg transition-colors whitespace-nowrap">
+                  Message
+                </button>
               </div>
-              <button onClick={() => onMessage(p)}
-                className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-amber-800 text-stone-200 rounded-lg transition-colors whitespace-nowrap">
-                Message
-              </button>
             </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
