@@ -819,14 +819,24 @@ useEffect(() => {
    return () => {};
   }, []);
 
-  const loadProfile = async (userId) => {
-    const { data, } = await supabase.from("players").select("*").eq("user_id", userId).maybeSingle();
-    if (data) {
-      setMyProfile(data);
+const loadProfile = async (userId) => {
+    try {
+      const { data, error } = await supabase.from("players").select("*").eq("user_id", userId).maybeSingle();
+      if (error) {
+        console.error("Profile load error:", error);
+        setShowProfile(false);
+        return;
+      }
+      if (data) {
+        setMyProfile(data);
+        setShowProfile(false);
+      } else {
+        setMyProfile(null);
+        setShowProfile(true);
+      }
+    } catch (e) {
+      console.error("Profile load exception:", e);
       setShowProfile(false);
-    } else {
-      setMyProfile(null);
-      setShowProfile(true);
     }
   };
 
