@@ -241,6 +241,7 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
   const [ratings, setRatings] = useState<Record<string, number[]>>({});
   const [myRatings, setMyRatings] = useState<Record<string, number>>({});
   const [blockedIds, setBlockedIds] = useState<string[]>([]);
+  const [friendships, setFriendships] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [reportTarget, setReportTarget] = useState<any>(null);
@@ -267,6 +268,10 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
       if (myProfile) {
         const { data: blockData } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", myProfile.id);
         setBlockedIds((blockData || []).map((b: any) => b.blocked_id));
+        const { data: friendData } = await supabase.from("friendships")
+          .select("*")
+          .or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`);
+        setFriendships(friendData || []);
       }
       setLoading(false);
     };
@@ -291,6 +296,24 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
       await supabase.from("blocks").insert([{ blocker_id: myProfile.id, blocked_id: playerId }]);
       setBlockedIds(ids => [...ids, playerId]);
     }
+  };
+
+  const sendFriendRequest = async (playerId: string) => {
+    if (!myProfile) return;
+    await supabase.from("friendships").insert([{ sender_id: myProfile.id, receiver_id: playerId, status: "pending" }]);
+    setFriendships(f => [...f, { sender_id: myProfile.id, receiver_id: playerId, status: "pending" }]);
+  };
+
+  const getFriendStatus = (playerId: string) => {
+    if (!myProfile) return null;
+    const fs = friendships.find(f =>
+      (f.sender_id === myProfile.id && f.receiver_id === playerId) ||
+      (f.receiver_id === myProfile.id && f.sender_id === playerId)
+    );
+    if (!fs) return null;
+    if (fs.status === "accepted") return "friends";
+    if (fs.sender_id === myProfile.id) return "pending_sent";
+    return "pending_received";
   };
 
   const submitReport = async () => {
@@ -341,6 +364,7 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
         {filtered.map(p => {
           const avg = getAverage(p.id);
           const myScore = myRatings[p.id] || 0;
+          const friendStatus = getFriendStatus(p.id);
           return (
             <div key={p.id} className="bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
               <div className="flex items-start gap-3">
@@ -349,6 +373,7 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold text-amber-100">{p.name}</span>
                     <span className="text-xs text-stone-500">{p.experience}</span>
+                    {friendStatus === "friends" && <span className="text-xs text-green-400 font-medium">✓ Friends</span>}
                   </div>
                   <p className="text-xs text-stone-400 mb-2">📍 {p.city}</p>
                   <div className="flex flex-wrap gap-1 mb-2">{p.games?.map((g: string) => <GameTag key={g} game={g} />)}</div>
@@ -366,6 +391,17 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <button onClick={() => onMessage(p)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-amber-800 text-stone-200 rounded-lg transition-colors whitespace-nowrap">Message</button>
+                  {myProfile && (
+                    friendStatus === "friends" ? (
+                      <span className="text-xs px-3 py-1.5 bg-green-900/40 text-green-400 rounded-lg text-center whitespace-nowrap">Friends ✓</span>
+                    ) : friendStatus === "pending_sent" ? (
+                      <span className="text-xs px-3 py-1.5 bg-stone-700 text-stone-500 rounded-lg text-center whitespace-nowrap">Requested</span>
+                    ) : friendStatus === "pending_received" ? (
+                      <span className="text-xs px-3 py-1.5 bg-amber-900/40 text-amber-400 rounded-lg text-center whitespace-nowrap">Wants to connect</span>
+                    ) : (
+                      <button onClick={() => sendFriendRequest(p.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-green-900 text-stone-400 hover:text-green-300 rounded-lg transition-colors whitespace-nowrap">+ Friend</button>
+                    )
+                  )}
                   <button onClick={() => blockPlayer(p.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors whitespace-nowrap">
                     {blockedIds.includes(p.id) ? "Unblock" : "Block"}
                   </button>
@@ -595,14 +631,12 @@ function StoresTab() {
         </button>
         {error && <p className="text-red-400 text-sm mt-3 text-center">{error}</p>}
       </div>
-
       {searched && stores.length === 0 && (
         <div className="text-center text-stone-500 py-16">
           <div className="text-4xl mb-3">🏪</div>
           <p>No game stores found nearby.</p>
         </div>
       )}
-
       <div className="space-y-3">
         {stores.map((store: any) => (
           <a key={store.id} href={store.googleMapsUri} target="_blank" rel="noopener noreferrer"
@@ -953,6 +987,152 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
   );
 }
 
+// ── Friends Tab ────────────────────────────────────────────────────────────────
+function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) => void }) {
+  const [friendships, setFriendships] = useState<any[]>([]);
+  const [players, setPlayers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!myProfile) return;
+    const fetchData = async () => {
+      const [{ data: fsData }, { data: playerData }] = await Promise.all([
+        supabase.from("friendships")
+          .select("*")
+          .or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`),
+        supabase.from("players").select("*"),
+      ]);
+      setFriendships(fsData || []);
+      setPlayers(playerData || []);
+      setLoading(false);
+    };
+    fetchData();
+    const interval = setInterval(fetchData, 5000);
+    return () => clearInterval(interval);
+  }, [myProfile]);
+
+  const acceptRequest = async (friendshipId: string) => {
+    await supabase.from("friendships").update({ status: "accepted" }).eq("id", friendshipId);
+    setFriendships(fs => fs.map(f => f.id === friendshipId ? {...f, status: "accepted"} : f));
+  };
+
+  const declineRequest = async (friendshipId: string) => {
+    await supabase.from("friendships").delete().eq("id", friendshipId);
+    setFriendships(fs => fs.filter(f => f.id !== friendshipId));
+  };
+
+  const removeFriend = async (friendshipId: string) => {
+    await supabase.from("friendships").delete().eq("id", friendshipId);
+    setFriendships(fs => fs.filter(f => f.id !== friendshipId));
+  };
+
+  const getPlayer = (id: string) => players.find(p => p.id === id);
+
+  const incoming = friendships.filter(f => f.receiver_id === myProfile?.id && f.status === "pending");
+  const accepted = friendships.filter(f => f.status === "accepted");
+
+  if (!myProfile) return (
+    <div className="text-center py-16 text-stone-400">
+      <div className="text-4xl mb-4">🤝</div>
+      <p>Set up your profile to manage friends.</p>
+    </div>
+  );
+
+  if (loading) return <LoadingSpinner />;
+
+  return (
+    <div className="space-y-6">
+      {/* Incoming Requests */}
+      {incoming.length > 0 && (
+        <div>
+          <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">
+            ⚔️ Friend Requests ({incoming.length})
+          </h3>
+          <div className="space-y-2">
+            {incoming.map(fs => {
+              const sender = getPlayer(fs.sender_id);
+              if (!sender) return null;
+              return (
+                <div key={fs.id} className="bg-stone-800 border border-amber-900 rounded-xl p-4 flex items-center gap-3">
+                  <AvatarEl emoji={sender.avatar} online={sender.online} />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-amber-100">{sender.name}</p>
+                    <p className="text-xs text-stone-400">{sender.city} • {sender.experience}</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {sender.games?.slice(0, 3).map((g: string) => <GameTag key={g} game={g} />)}
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1.5 flex-shrink-0">
+                    <button onClick={() => acceptRequest(fs.id)}
+                      className="text-xs px-3 py-1.5 bg-green-800 hover:bg-green-700 text-green-100 rounded-lg transition-colors font-medium">
+                      Accept ✓
+                    </button>
+                    <button onClick={() => declineRequest(fs.id)}
+                      className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors">
+                      Decline
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Friends List */}
+      <div>
+        <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">
+          🛡️ Your Party ({accepted.length})
+        </h3>
+        {accepted.length === 0 ? (
+          <div className="text-center py-12 text-stone-500">
+            <div className="text-4xl mb-3">🤝</div>
+            <p>No friends yet.</p>
+            <p className="text-sm mt-1">Head to the Players tab and hit <span className="text-amber-400">+ Friend</span> on someone's card!</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {accepted.map(fs => {
+              const friendId = fs.sender_id === myProfile.id ? fs.receiver_id : fs.sender_id;
+              const friend = getPlayer(friendId);
+              if (!friend) return null;
+              return (
+                <div key={fs.id} className="bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <AvatarEl emoji={friend.avatar} online={friend.online} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-amber-100">{friend.name}</p>
+                        <span className={`text-xs font-medium ${friend.online ? "text-green-400" : "text-stone-500"}`}>
+                          {friend.online ? "● Online" : "○ Offline"}
+                        </span>
+                      </div>
+                      <p className="text-xs text-stone-400">{friend.city} • {friend.experience}</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {friend.games?.slice(0, 4).map((g: string) => <GameTag key={g} game={g} />)}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1.5 flex-shrink-0">
+                      <button onClick={() => onMessage(friend)}
+                        className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg transition-colors whitespace-nowrap">
+                        Message
+                      </button>
+                      <button onClick={() => removeFriend(fs.id)}
+                        className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors whitespace-nowrap">
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ───────────────────────────────────────────────────────────────────
 export default function App() {
   const [authUser, setAuthUser] = useState<any>(null);
@@ -1035,6 +1215,7 @@ export default function App() {
     {id:"lfg",label:"LFG",icon:"📣"},
     {id:"stores",label:"Stores",icon:"🏪"},
     {id:"matchmaking",label:"Match",icon:"🔮"},
+    {id:"friends",label:"Friends",icon:"🤝"},
     {id:"messages",label:"Messages",icon:"💬"},
   ];
 
@@ -1065,11 +1246,11 @@ export default function App() {
           </div>
         </div>
       </header>
-      <div className="sticky top-14 z-30 bg-stone-950/95 backdrop-blur border-b border-stone-800">
-        <div className="max-w-2xl mx-auto px-4 flex">
+      <div className="sticky top-14 z-30 bg-stone-950/95 backdrop-blur border-b border-stone-800 overflow-x-auto">
+        <div className="max-w-2xl mx-auto px-4 flex min-w-max">
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
-              className={`flex-1 py-3 text-xs font-medium transition-colors ${tab===t.id?"text-amber-300 border-b-2 border-amber-400":"text-stone-400 hover:text-stone-200"}`}>
+              className={`px-3 py-3 text-xs font-medium transition-colors whitespace-nowrap ${tab===t.id?"text-amber-300 border-b-2 border-amber-400":"text-stone-400 hover:text-stone-200"}`}>
               <span className="mr-1">{t.icon}</span>{t.label}
             </button>
           ))}
@@ -1081,6 +1262,7 @@ export default function App() {
         {tab==="lfg" && <LFGTab myProfile={myProfile} onMessage={setMsgTarget} />}
         {tab==="stores" && <StoresTab />}
         {tab==="matchmaking" && <MatchmakingTab myProfile={myProfile} />}
+        {tab==="friends" && <FriendsTab myProfile={myProfile} onMessage={setMsgTarget} />}
         {tab==="messages" && <MessagesTab myProfile={myProfile} />}
       </main>
       {showProfile && (
