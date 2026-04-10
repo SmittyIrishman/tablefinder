@@ -8,6 +8,7 @@ const GAMES = {
 };
 const EXPERIENCE = ["New Player","Casual","Intermediate","Competitive","Game Master / Judge"];
 const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+const EVENT_TYPES = ["One Shot","Campaign / Ongoing","Tournament","Open Play","Game Night","League"];
 
 function GameTag({ game }: { game: string }) {
   const isWargame = GAMES.wargames.includes(game);
@@ -61,15 +62,12 @@ function AuthScreen({ onAuth }: { onAuth: (user: any, accountType: string) => vo
   const [message, setMessage] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    setLoading(true);
-    setError(null);
-    setMessage(null);
+    setLoading(true); setError(null); setMessage(null);
     if (mode === "reset") {
       const { error } = await supabase.auth.resetPasswordForEmail(email);
       if (error) setError(error.message);
       else setMessage("Password reset email sent! Check your inbox.");
-      setLoading(false);
-      return;
+      setLoading(false); return;
     }
     if (mode === "signup") {
       const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { account_type: accountType } } });
@@ -78,10 +76,7 @@ function AuthScreen({ onAuth }: { onAuth: (user: any, accountType: string) => vo
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError(error.message);
-      else {
-        const type = data.user?.user_metadata?.account_type || "player";
-        onAuth(data.user, type);
-      }
+      else { const type = data.user?.user_metadata?.account_type || "player"; onAuth(data.user, type); }
     }
     setLoading(false);
   };
@@ -90,30 +85,26 @@ function AuthScreen({ onAuth }: { onAuth: (user: any, accountType: string) => vo
     <div className="min-h-screen bg-stone-950 flex items-center justify-center p-4" style={{fontFamily:"'Georgia',serif"}}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-amber-300 mb-2" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>⚔️ TableFinder</h1>
+          <h1 className="text-4xl font-bold text-amber-300 mb-2" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>⚔️ The Notice Board</h1>
           <p className="text-stone-400">Find your adventuring party</p>
         </div>
         <div className="bg-stone-900 border border-stone-700 rounded-2xl p-6">
           {mode !== "reset" && (
             <div className="flex mb-6 bg-stone-800 rounded-lg p-1">
-              <button onClick={() => { setMode("signin"); setError(null); setMessage(null); }}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode==="signin" ? "bg-amber-700 text-white" : "text-stone-400 hover:text-white"}`}>Sign In</button>
-              <button onClick={() => { setMode("signup"); setError(null); setMessage(null); }}
-                className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode==="signup" ? "bg-amber-700 text-white" : "text-stone-400 hover:text-white"}`}>Create Account</button>
+              <button onClick={() => { setMode("signin"); setError(null); setMessage(null); }} className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode==="signin" ? "bg-amber-700 text-white" : "text-stone-400 hover:text-white"}`}>Sign In</button>
+              <button onClick={() => { setMode("signup"); setError(null); setMessage(null); }} className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode==="signup" ? "bg-amber-700 text-white" : "text-stone-400 hover:text-white"}`}>Create Account</button>
             </div>
           )}
           {mode === "signup" && (
             <div className="mb-5">
               <label className="block text-sm text-stone-400 mb-2">I am signing up as a...</label>
               <div className="grid grid-cols-2 gap-2">
-                <button onClick={() => setAccountType("player")}
-                  className={`py-3 px-4 rounded-xl border-2 transition-all text-left ${accountType==="player" ? "border-amber-500 bg-amber-900/30" : "border-stone-700 bg-stone-800 hover:border-stone-500"}`}>
+                <button onClick={() => setAccountType("player")} className={`py-3 px-4 rounded-xl border-2 transition-all text-left ${accountType==="player" ? "border-amber-500 bg-amber-900/30" : "border-stone-700 bg-stone-800 hover:border-stone-500"}`}>
                   <div className="text-xl mb-1">🎲</div>
                   <div className="text-sm font-medium text-amber-100">Player</div>
                   <div className="text-xs text-stone-400">Find games and players</div>
                 </button>
-                <button onClick={() => setAccountType("store")}
-                  className={`py-3 px-4 rounded-xl border-2 transition-all text-left ${accountType==="store" ? "border-amber-500 bg-amber-900/30" : "border-stone-700 bg-stone-800 hover:border-stone-500"}`}>
+                <button onClick={() => setAccountType("store")} className={`py-3 px-4 rounded-xl border-2 transition-all text-left ${accountType==="store" ? "border-amber-500 bg-amber-900/30" : "border-stone-700 bg-stone-800 hover:border-stone-500"}`}>
                   <div className="text-xl mb-1">🏪</div>
                   <div className="text-sm font-medium text-amber-100">Game Store</div>
                   <div className="text-xs text-stone-400">Build your community</div>
@@ -121,25 +112,10 @@ function AuthScreen({ onAuth }: { onAuth: (user: any, accountType: string) => vo
               </div>
             </div>
           )}
-          {mode === "reset" && (
-            <div className="mb-6">
-              <h2 className="text-amber-200 font-bold mb-1">Reset Password</h2>
-              <p className="text-stone-400 text-sm">Enter your email and we'll send you a reset link.</p>
-            </div>
-          )}
+          {mode === "reset" && (<div className="mb-6"><h2 className="text-amber-200 font-bold mb-1">Reset Password</h2><p className="text-stone-400 text-sm">Enter your email and we'll send you a reset link.</p></div>)}
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-stone-400 mb-1">Email</label>
-              <input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="you@example.com" />
-            </div>
-            {mode !== "reset" && (
-              <div>
-                <label className="block text-sm text-stone-400 mb-1">Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key === "Enter" && handleSubmit()}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="Minimum 6 characters" />
-              </div>
-            )}
+            <div><label className="block text-sm text-stone-400 mb-1">Email</label><input type="email" value={email} onChange={e => setEmail(e.target.value)} onKeyDown={e => e.key==="Enter"&&handleSubmit()} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="you@example.com" /></div>
+            {mode !== "reset" && (<div><label className="block text-sm text-stone-400 mb-1">Password</label><input type="password" value={password} onChange={e => setPassword(e.target.value)} onKeyDown={e => e.key==="Enter"&&handleSubmit()} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="Minimum 6 characters" /></div>)}
             {error && <div className="bg-red-900/40 border border-red-700 rounded-lg px-3 py-2 text-red-300 text-sm">{error}</div>}
             {message && <div className="bg-green-900/40 border border-green-700 rounded-lg px-3 py-2 text-green-300 text-sm">{message}</div>}
             {mode === "signup" && accountType === "player" && (
@@ -148,17 +124,11 @@ function AuthScreen({ onAuth }: { onAuth: (user: any, accountType: string) => vo
                 <label htmlFor="ageConfirm" className="text-sm text-stone-400 cursor-pointer">I confirm that I am <span className="text-amber-300 font-medium">18 years of age or older</span></label>
               </div>
             )}
-            <button onClick={handleSubmit}
-              disabled={!email || (!password && mode !== "reset") || loading || (mode === "signup" && accountType === "player" && !ageConfirmed)}
-              className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
-              {loading ? "Please wait..." : mode === "reset" ? "Send Reset Email" : mode === "signup" ? "Create Account →" : "Sign In →"}
+            <button onClick={handleSubmit} disabled={!email||(!password&&mode!=="reset")||loading||(mode==="signup"&&accountType==="player"&&!ageConfirmed)} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
+              {loading ? "Please wait..." : mode==="reset" ? "Send Reset Email" : mode==="signup" ? "Create Account →" : "Sign In →"}
             </button>
-            {mode === "signin" && (
-              <button onClick={() => { setMode("reset"); setError(null); setMessage(null); }} className="w-full text-center text-sm text-stone-500 hover:text-stone-300 transition-colors">Forgot your password?</button>
-            )}
-            {mode === "reset" && (
-              <button onClick={() => { setMode("signin"); setError(null); setMessage(null); }} className="w-full text-center text-sm text-stone-500 hover:text-stone-300 transition-colors">← Back to Sign In</button>
-            )}
+            {mode === "signin" && <button onClick={() => { setMode("reset"); setError(null); setMessage(null); }} className="w-full text-center text-sm text-stone-500 hover:text-stone-300 transition-colors">Forgot your password?</button>}
+            {mode === "reset" && <button onClick={() => { setMode("signin"); setError(null); setMessage(null); }} className="w-full text-center text-sm text-stone-500 hover:text-stone-300 transition-colors">← Back to Sign In</button>}
           </div>
         </div>
         <p className="text-center text-stone-600 text-xs mt-4">Your data is stored securely and never shared.</p>
@@ -186,56 +156,20 @@ function StoreProfileSetup({ existing, onSave }: { existing: any; onSave: (form:
 
   return (
     <div className="space-y-5">
-      <div className="bg-amber-900/20 border border-amber-800 rounded-xl p-4">
-        <p className="text-sm text-amber-200">Welcome to TableFinder for Stores! Set up your store profile so local players can find you.</p>
-      </div>
-      <div>
-        <label className="block text-sm text-stone-400 mb-1">Store Name *</label>
-        <input value={form.name} onChange={e => setForm((f: any) => ({...f, name: e.target.value}))}
-          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Dragon's Lair Games" />
-      </div>
-      <div>
-        <label className="block text-sm text-stone-400 mb-1">Street Address *</label>
-        <input value={form.address} onChange={e => setForm((f: any) => ({...f, address: e.target.value}))}
-          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 123 Main St" />
-      </div>
+      <div className="bg-amber-900/20 border border-amber-800 rounded-xl p-4"><p className="text-sm text-amber-200">Welcome to The Notice Board for Stores! Set up your store profile so local players can find you.</p></div>
+      <div><label className="block text-sm text-stone-400 mb-1">Store Name *</label><input value={form.name} onChange={e => setForm((f: any) => ({...f,name:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Dragon's Lair Games" /></div>
+      <div><label className="block text-sm text-stone-400 mb-1">Street Address *</label><input value={form.address} onChange={e => setForm((f: any) => ({...f,address:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 123 Main St" /></div>
       <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-sm text-stone-400 mb-1">City / Region *</label>
-          <input value={form.city} onChange={e => setForm((f: any) => ({...f, city: e.target.value}))}
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Austin, TX" />
-        </div>
-        <div>
-          <label className="block text-sm text-stone-400 mb-1">Phone</label>
-          <input value={form.phone} onChange={e => setForm((f: any) => ({...f, phone: e.target.value}))}
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. (512) 555-0100" />
-        </div>
+        <div><label className="block text-sm text-stone-400 mb-1">City / Region *</label><input value={form.city} onChange={e => setForm((f: any) => ({...f,city:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Austin, TX" /></div>
+        <div><label className="block text-sm text-stone-400 mb-1">Phone</label><input value={form.phone} onChange={e => setForm((f: any) => ({...f,phone:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. (512) 555-0100" /></div>
       </div>
-      <div>
-        <label className="block text-sm text-stone-400 mb-1">Website</label>
-        <input value={form.website} onChange={e => setForm((f: any) => ({...f, website: e.target.value}))}
-          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. https://yourstore.com" />
-      </div>
-      <div>
-        <label className="block text-sm text-stone-400 mb-1">About Your Store</label>
-        <textarea value={form.description} onChange={e => setForm((f: any) => ({...f, description: e.target.value}))} rows={3}
-          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
-          placeholder="Tell players what makes your store special..." />
-      </div>
+      <div><label className="block text-sm text-stone-400 mb-1">Website</label><input value={form.website} onChange={e => setForm((f: any) => ({...f,website:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. https://yourstore.com" /></div>
+      <div><label className="block text-sm text-stone-400 mb-1">About Your Store</label><textarea value={form.description} onChange={e => setForm((f: any) => ({...f,description:e.target.value}))} rows={3} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Tell players what makes your store special..." /></div>
       <div>
         <label className="block text-sm text-stone-400 mb-2">Open Days</label>
-        <div className="flex flex-wrap gap-1.5">
-          {DAYS.map(d => (
-            <button key={d} onClick={() => toggleDay(d)}
-              className={`text-xs px-3 py-1 rounded-full border transition-all ${form.open_days.includes(d) ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{d}</button>
-          ))}
-        </div>
+        <div className="flex flex-wrap gap-1.5">{DAYS.map(d => <button key={d} onClick={() => toggleDay(d)} className={`text-xs px-3 py-1 rounded-full border transition-all ${form.open_days.includes(d) ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{d}</button>)}</div>
       </div>
-      <div>
-        <label className="block text-sm text-stone-400 mb-1">Hours</label>
-        <input value={form.hours} onChange={e => setForm((f: any) => ({...f, hours: e.target.value}))}
-          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 10am - 9pm" />
-      </div>
+      <div><label className="block text-sm text-stone-400 mb-1">Hours</label><input value={form.hours} onChange={e => setForm((f: any) => ({...f,hours:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 10am - 9pm" /></div>
       <div>
         <label className="block text-sm text-stone-400 mb-2">Games We Carry</label>
         {gameSections.map(([label, key, color]) => (
@@ -243,21 +177,13 @@ function StoreProfileSetup({ existing, onSave }: { existing: any; onSave: (form:
             <p className="text-xs text-stone-500 mb-1.5">{label}</p>
             <div className="flex flex-wrap gap-1.5">
               {GAMES[key as keyof typeof GAMES].map(g => (
-                <button key={g} onClick={() => toggleGame(g)}
-                  className={`text-xs px-3 py-1 rounded-full border transition-all ${form.games_carried.includes(g)
-                    ? color === "amber" ? "bg-amber-800 border-amber-600 text-amber-100"
-                    : color === "blue" ? "bg-blue-800 border-blue-600 text-blue-100"
-                    : "bg-red-800 border-red-600 text-red-100"
-                    : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>
+                <button key={g} onClick={() => toggleGame(g)} className={`text-xs px-3 py-1 rounded-full border transition-all ${form.games_carried.includes(g) ? color==="amber" ? "bg-amber-800 border-amber-600 text-amber-100" : color==="blue" ? "bg-blue-800 border-blue-600 text-blue-100" : "bg-red-800 border-red-600 text-red-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>
               ))}
             </div>
           </div>
         ))}
       </div>
-      <button onClick={handleSave} disabled={!form.name || !form.address || !form.city || saving}
-        className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
-        {saving ? "Saving..." : "Save Store Profile →"}
-      </button>
+      <button onClick={handleSave} disabled={!form.name||!form.address||!form.city||saving} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">{saving ? "Saving..." : "Save Store Profile →"}</button>
     </div>
   );
 }
@@ -265,18 +191,26 @@ function StoreProfileSetup({ existing, onSave }: { existing: any; onSave: (form:
 // ── Store Dashboard ────────────────────────────────────────────────────────────
 function StoreDashboard({ storeProfile, onEditProfile, onSignOut }: { storeProfile: any; onEditProfile: () => void; onSignOut: () => void }) {
   const [players, setPlayers] = useState<any[]>([]);
+  const [storeEvents, setStoreEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateEvent, setShowCreateEvent] = useState(false);
+  const [savingEvent, setSavingEvent] = useState(false);
+  const [eventForm, setEventForm] = useState({ title:"", date:"", time:"", location:"", games:[] as string[], max_players:20, description:"", event_type:"Tournament", recurring:false, recurring_frequency:"" });
 
   useEffect(() => {
-    const fetchPlayers = async () => {
-      const { data } = await supabase.from("players").select("*").eq("visible_to_stores", true).order("created_at", { ascending: false });
-      setPlayers(data || []);
+    const fetchData = async () => {
+      const [{ data: playerData }, { data: eventData }] = await Promise.all([
+        supabase.from("players").select("*").eq("visible_to_stores", true).order("created_at", { ascending: false }),
+        supabase.from("events").select("*").eq("store_id", storeProfile.id).order("date", { ascending: true }),
+      ]);
+      setPlayers(playerData || []);
+      setStoreEvents(eventData || []);
       setLoading(false);
     };
-    fetchPlayers();
-    const interval = setInterval(fetchPlayers, 10000);
+    fetchData();
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [storeProfile]);
 
   const nearbyPlayers = storeProfile?.city
     ? players.filter(p => p.city?.toLowerCase().includes(storeProfile.city.split(",")[0].toLowerCase()))
@@ -286,24 +220,49 @@ function StoreDashboard({ storeProfile, onEditProfile, onSignOut }: { storeProfi
   players.forEach(p => { p.games?.forEach((g: string) => { gameInterestMap[g] = (gameInterestMap[g] || 0) + 1; }); });
   const topGames = Object.entries(gameInterestMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
 
+  const createStoreEvent = async () => {
+    if (!eventForm.title || !eventForm.date) return;
+    setSavingEvent(true);
+    const { data } = await supabase.from("events").insert([{
+      ...eventForm,
+      host: storeProfile.name,
+      store_id: storeProfile.id,
+      store_name: storeProfile.name,
+      event_type: "store",
+      joined: [],
+    }]).select();
+    if (data) setStoreEvents(e => [...e, data[0]]);
+    setShowCreateEvent(false);
+    setEventForm({ title:"", date:"", time:"", location:"", games:[], max_players:20, description:"", event_type:"Tournament", recurring:false, recurring_frequency:"" });
+    setSavingEvent(false);
+  };
+
+  const deleteStoreEvent = async (eventId: string) => {
+    await supabase.from("events").delete().eq("id", eventId);
+    setStoreEvents(e => e.filter(ev => ev.id !== eventId));
+  };
+
+  const toggleGame = (game: string) => setEventForm(f => ({...f, games: f.games.includes(game) ? f.games.filter(g => g !== game) : [...f.games, game]}));
+
   return (
     <div className="min-h-screen bg-stone-950 text-white" style={{fontFamily:"'Georgia',serif"}}>
       <header className="sticky top-0 z-40 bg-stone-950/95 backdrop-blur border-b border-stone-800">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-amber-300" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>⚔️ TableFinder</h1>
+            <h1 className="text-xl font-bold text-amber-300" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>⚔️ The Notice Board</h1>
             <p className="text-xs text-stone-500">Store Dashboard</p>
           </div>
           <div className="flex items-center gap-2">
             <button onClick={onEditProfile} className="flex items-center gap-2 bg-stone-800 hover:bg-stone-700 px-3 py-2 rounded-lg transition-colors">
-              <span>🏪</span>
-              <span className="text-sm text-amber-200">{storeProfile?.name || "Set up Store"}</span>
+              <span>🏪</span><span className="text-sm text-amber-200">{storeProfile?.name || "Set up Store"}</span>
             </button>
             <button onClick={onSignOut} className="text-xs text-stone-500 hover:text-stone-300 px-2 py-2 transition-colors">Sign Out</button>
           </div>
         </div>
       </header>
       <main className="max-w-2xl mx-auto px-4 py-5 space-y-6">
+
+        {/* Store Profile Card */}
         <div className="bg-stone-800 border border-amber-900 rounded-2xl p-5">
           <div className="flex items-start justify-between mb-3">
             <div>
@@ -318,19 +277,46 @@ function StoreDashboard({ storeProfile, onEditProfile, onSignOut }: { storeProfi
             {storeProfile?.hours && <span>🕐 {storeProfile.hours}</span>}
             {storeProfile?.website && <a href={storeProfile.website} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">🌐 Website</a>}
           </div>
-          {storeProfile?.open_days?.length > 0 && (
-            <div className="flex flex-wrap gap-1 mt-3">
-              {storeProfile.open_days.map((d: string) => <span key={d} className="text-xs px-2 py-0.5 bg-stone-700 text-stone-300 rounded-full">{d}</span>)}
+          {storeProfile?.open_days?.length > 0 && <div className="flex flex-wrap gap-1 mt-3">{storeProfile.open_days.map((d: string) => <span key={d} className="text-xs px-2 py-0.5 bg-stone-700 text-stone-300 rounded-full">{d}</span>)}</div>}
+          {storeProfile?.games_carried?.length > 0 && <div className="mt-3"><p className="text-xs text-stone-500 mb-1.5">Games we carry:</p><div className="flex flex-wrap gap-1">{storeProfile.games_carried.map((g: string) => <GameTag key={g} game={g} />)}</div></div>}
+        </div>
+
+        {/* Store Events */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-amber-300 uppercase tracking-wider">📅 Your Events</h3>
+            <button onClick={() => setShowCreateEvent(true)} className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg transition-colors">+ Post Event</button>
+          </div>
+          {storeEvents.length === 0 ? (
+            <div className="text-center py-8 text-stone-500 bg-stone-800 border border-stone-700 rounded-xl">
+              <div className="text-3xl mb-2">📅</div>
+              <p className="text-sm">No events posted yet.</p>
+              <p className="text-xs mt-1">Post a tournament, game night, or open play session!</p>
             </div>
-          )}
-          {storeProfile?.games_carried?.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs text-stone-500 mb-1.5">Games we carry:</p>
-              <div className="flex flex-wrap gap-1">{storeProfile.games_carried.map((g: string) => <GameTag key={g} game={g} />)}</div>
+          ) : (
+            <div className="space-y-2">
+              {storeEvents.map(e => (
+                <div key={e.id} className="bg-stone-800 border border-stone-700 rounded-xl p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-semibold text-amber-100">{e.title}</span>
+                        {e.event_type && <span className="text-xs bg-stone-700 text-stone-300 px-2 py-0.5 rounded-full">{e.event_type}</span>}
+                        {e.recurring && <span className="text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded-full">🔁 {e.recurring_frequency}</span>}
+                      </div>
+                      <p className="text-xs text-stone-400">📅 {e.date}{e.time && ` • ${e.time}`}</p>
+                      <p className="text-xs text-stone-400">👥 {e.joined?.length || 0} / {e.max_players} joined</p>
+                      <div className="flex flex-wrap gap-1 mt-1">{e.games?.map((g: string) => <GameTag key={g} game={g} />)}</div>
+                    </div>
+                    <button onClick={() => deleteStoreEvent(e.id)} className="text-xs px-2 py-1 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors flex-shrink-0">Delete</button>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
+        {/* Community Insights */}
         <div>
           <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">📊 Community Insights</h3>
           <div className="grid grid-cols-2 gap-3 mb-4">
@@ -348,16 +334,12 @@ function StoreDashboard({ storeProfile, onEditProfile, onSignOut }: { storeProfi
               <p className="text-xs text-stone-400 mb-3">Most popular games among opted-in players:</p>
               <div className="space-y-2">
                 {topGames.map(([game, count]) => (
-                  <div key={game} className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-0.5">
-                        <span className="text-xs text-stone-200">{game}</span>
-                        <span className="text-xs text-stone-500">{count} player{count !== 1 ? "s" : ""}</span>
-                      </div>
-                      <div className="w-full h-1 bg-stone-700 rounded-full">
-                        <div className="h-full bg-amber-600 rounded-full" style={{width:`${(count / (topGames[0][1] as number)) * 100}%`}} />
-                      </div>
+                  <div key={game}>
+                    <div className="flex items-center justify-between mb-0.5">
+                      <span className="text-xs text-stone-200">{game}</span>
+                      <span className="text-xs text-stone-500">{count} player{count !== 1 ? "s" : ""}</span>
                     </div>
+                    <div className="w-full h-1 bg-stone-700 rounded-full"><div className="h-full bg-amber-600 rounded-full" style={{width:`${(count / (topGames[0][1] as number)) * 100}%`}} /></div>
                   </div>
                 ))}
               </div>
@@ -365,25 +347,19 @@ function StoreDashboard({ storeProfile, onEditProfile, onSignOut }: { storeProfi
           )}
         </div>
 
+        {/* Players Near You */}
         <div>
           <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">🎲 Players Near You</h3>
           {loading && <LoadingSpinner />}
           {!loading && nearbyPlayers.length === 0 && (
-            <div className="text-center py-10 text-stone-500">
-              <div className="text-3xl mb-2">🎲</div>
-              <p className="text-sm">No players in your area have opted in to store visibility yet.</p>
-              <p className="text-xs mt-1 text-stone-600">As more players join TableFinder, they will appear here.</p>
-            </div>
+            <div className="text-center py-10 text-stone-500"><div className="text-3xl mb-2">🎲</div><p className="text-sm">No players in your area have opted in to store visibility yet.</p></div>
           )}
           <div className="space-y-2">
             {nearbyPlayers.map(p => (
               <div key={p.id} className="bg-stone-800 border border-stone-700 rounded-xl p-3 flex items-center gap-3">
                 <AvatarEl emoji={p.avatar} size="sm" online={p.online} />
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-amber-100">{p.name}</span>
-                    <span className="text-xs text-stone-500">{p.experience}</span>
-                  </div>
+                  <div className="flex items-center gap-2"><span className="text-sm font-medium text-amber-100">{p.name}</span><span className="text-xs text-stone-500">{p.experience}</span></div>
                   <p className="text-xs text-stone-400">📍 {p.city}</p>
                   <div className="flex flex-wrap gap-1 mt-1">{p.games?.slice(0,4).map((g: string) => <GameTag key={g} game={g} />)}</div>
                 </div>
@@ -392,6 +368,47 @@ function StoreDashboard({ storeProfile, onEditProfile, onSignOut }: { storeProfi
           </div>
         </div>
       </main>
+
+      {/* Create Event Modal */}
+      {showCreateEvent && (
+        <Modal title="Post a Store Event" onClose={() => setShowCreateEvent(false)}>
+          <div className="space-y-4">
+            <div><label className="block text-sm text-stone-400 mb-1">Event Title *</label><input value={eventForm.title} onChange={e => setEventForm(f => ({...f,title:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Friday Night Magic Tournament" /></div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-2">Event Type</label>
+              <div className="flex flex-wrap gap-1.5">{EVENT_TYPES.map(t => <button key={t} onClick={() => setEventForm(f => ({...f,event_type:t}))} className={`text-xs px-3 py-1 rounded-full border transition-all ${eventForm.event_type===t ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{t}</button>)}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="block text-sm text-stone-400 mb-1">Date *</label><input type="date" value={eventForm.date} onChange={e => setEventForm(f => ({...f,date:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" /></div>
+              <div><label className="block text-sm text-stone-400 mb-1">Time</label><input value={eventForm.time} onChange={e => setEventForm(f => ({...f,time:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 6:00 PM" /></div>
+            </div>
+            <div><label className="block text-sm text-stone-400 mb-1">Location</label><input value={eventForm.location} onChange={e => setEventForm(f => ({...f,location:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder={storeProfile?.address || "Address"} /></div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-2">Games</label>
+              <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">{[...GAMES.ttrpg,...GAMES.tcg,...GAMES.wargames].map(g => <button key={g} onClick={() => toggleGame(g)} className={`text-xs px-2.5 py-1 rounded-full border transition-all ${eventForm.games.includes(g) ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>)}</div>
+            </div>
+            <div><label className="block text-sm text-stone-400 mb-1">Max Players: {eventForm.max_players}</label><input type="range" min={2} max={100} value={eventForm.max_players} onChange={e => setEventForm(f => ({...f,max_players:+e.target.value}))} className="w-full accent-amber-500" /></div>
+            <div className="bg-stone-800 border border-stone-700 rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <input type="checkbox" id="recurring" checked={eventForm.recurring} onChange={e => setEventForm(f => ({...f,recurring:e.target.checked}))} className="accent-amber-500 w-4 h-4" />
+                <label htmlFor="recurring" className="text-sm text-amber-200 font-medium cursor-pointer">🔁 Recurring Event</label>
+              </div>
+              {eventForm.recurring && (
+                <div>
+                  <label className="block text-sm text-stone-400 mb-2">Frequency</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["Weekly","Bi-weekly","Monthly"].map(f => (
+                      <button key={f} onClick={() => setEventForm(ef => ({...ef,recurring_frequency:f}))} className={`text-xs px-3 py-1 rounded-full border transition-all ${eventForm.recurring_frequency===f ? "bg-blue-800 border-blue-600 text-blue-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{f}</button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+            <div><label className="block text-sm text-stone-400 mb-1">Description</label><textarea value={eventForm.description} onChange={e => setEventForm(f => ({...f,description:e.target.value}))} rows={3} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Entry fee, format, prizes, skill level, etc." /></div>
+            <button onClick={createStoreEvent} disabled={!eventForm.title||!eventForm.date||savingEvent} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{savingEvent ? "Posting..." : "Post Event"}</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -409,7 +426,7 @@ function ProfileSetup({ existing, onSave }: { existing: any; onSave: (form: any)
     const age = today.getFullYear() - dob.getFullYear();
     const monthDiff = today.getMonth() - dob.getMonth();
     const isUnder18 = age < 18 || (age === 18 && monthDiff < 0) || (age === 18 && monthDiff === 0 && today.getDate() < dob.getDate());
-    if (isUnder18) alert("You must be 18 or older to use TableFinder.");
+    if (isUnder18) alert("You must be 18 or older to use The Notice Board.");
     else setForm((f: any) => ({...f, date_of_birth: e.target.value}));
   };
 
@@ -424,78 +441,33 @@ function ProfileSetup({ existing, onSave }: { existing: any; onSave: (form: any)
 
   return (
     <div className="space-y-5">
-      <div>
-        <label className="block text-sm text-stone-400 mb-2">Choose your avatar</label>
-        <div className="flex flex-wrap gap-2">
-          {AVATARS.map(a => (
-            <button key={a} onClick={() => setForm((f: any) => ({...f,avatar:a}))}
-              className={`text-2xl w-10 h-10 rounded-lg transition-all ${form.avatar===a ? "bg-amber-700 ring-2 ring-amber-400" : "bg-stone-800 hover:bg-stone-700"}`}>{a}</button>
-          ))}
-        </div>
-      </div>
+      <div><label className="block text-sm text-stone-400 mb-2">Choose your avatar</label><div className="flex flex-wrap gap-2">{AVATARS.map(a => <button key={a} onClick={() => setForm((f: any) => ({...f,avatar:a}))} className={`text-2xl w-10 h-10 rounded-lg transition-all ${form.avatar===a ? "bg-amber-700 ring-2 ring-amber-400" : "bg-stone-800 hover:bg-stone-700"}`}>{a}</button>)}</div></div>
       <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm text-stone-400 mb-1">Display Name *</label>
-          <input value={form.name} onChange={e => setForm((f: any) => ({...f,name:e.target.value}))}
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Alex V." />
-        </div>
-        <div>
-          <label className="block text-sm text-stone-400 mb-1">City / Region *</label>
-          <input value={form.city} onChange={e => setForm((f: any) => ({...f,city:e.target.value}))}
-            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Austin, TX" />
-        </div>
+        <div><label className="block text-sm text-stone-400 mb-1">Display Name *</label><input value={form.name} onChange={e => setForm((f: any) => ({...f,name:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Alex V." /></div>
+        <div><label className="block text-sm text-stone-400 mb-1">City / Region *</label><input value={form.city} onChange={e => setForm((f: any) => ({...f,city:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Austin, TX" /></div>
       </div>
-      <div>
-        <label className="block text-sm text-stone-400 mb-1">Date of Birth * <span className="text-stone-500">(must be 18+)</span></label>
-        <input type="date" value={form.date_of_birth || ""} onChange={handleDobChange}
-          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" />
-      </div>
-      <div>
-        <label className="block text-sm text-stone-400 mb-1">Experience Level</label>
-        <select value={form.experience} onChange={e => setForm((f: any) => ({...f,experience:e.target.value}))}
-          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none">
-          {EXPERIENCE.map(e => <option key={e}>{e}</option>)}
-        </select>
-      </div>
+      <div><label className="block text-sm text-stone-400 mb-1">Date of Birth * <span className="text-stone-500">(must be 18+)</span></label><input type="date" value={form.date_of_birth || ""} onChange={handleDobChange} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" /></div>
+      <div><label className="block text-sm text-stone-400 mb-1">Experience Level</label><select value={form.experience} onChange={e => setForm((f: any) => ({...f,experience:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none">{EXPERIENCE.map(e => <option key={e}>{e}</option>)}</select></div>
       <div>
         <label className="block text-sm text-stone-400 mb-2">Games You Play *</label>
         {gameSections.map(([label, key, color]) => (
           <div key={key} className="mb-3">
             <p className="text-xs text-stone-500 mb-1.5">{label}</p>
-            <div className="flex flex-wrap gap-1.5">
-              {GAMES[key as keyof typeof GAMES].map(g => (
-                <button key={g} onClick={() => toggle(g)}
-                  className={`text-xs px-3 py-1 rounded-full border transition-all ${form.games.includes(g)
-                    ? color === "amber" ? "bg-amber-800 border-amber-600 text-amber-100"
-                    : color === "blue" ? "bg-blue-800 border-blue-600 text-blue-100"
-                    : "bg-red-800 border-red-600 text-red-100"
-                    : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>
-              ))}
-            </div>
+            <div className="flex flex-wrap gap-1.5">{GAMES[key as keyof typeof GAMES].map(g => <button key={g} onClick={() => toggle(g)} className={`text-xs px-3 py-1 rounded-full border transition-all ${form.games.includes(g) ? color==="amber" ? "bg-amber-800 border-amber-600 text-amber-100" : color==="blue" ? "bg-blue-800 border-blue-600 text-blue-100" : "bg-red-800 border-red-600 text-red-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>)}</div>
           </div>
         ))}
       </div>
-      <div>
-        <label className="block text-sm text-stone-400 mb-1">Bio</label>
-        <textarea value={form.bio} onChange={e => setForm((f: any) => ({...f,bio:e.target.value}))} rows={3}
-          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
-          placeholder="Tell others what kind of player you are..." />
-      </div>
+      <div><label className="block text-sm text-stone-400 mb-1">Bio</label><textarea value={form.bio} onChange={e => setForm((f: any) => ({...f,bio:e.target.value}))} rows={3} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Tell others what kind of player you are..." /></div>
       <div className="bg-stone-800 border border-stone-700 rounded-xl p-4">
         <div className="flex items-start gap-3">
-          <input type="checkbox" id="storeVisible" checked={form.visible_to_stores || false}
-            onChange={e => setForm((f: any) => ({...f, visible_to_stores: e.target.checked}))}
-            className="mt-1 accent-amber-500 w-4 h-4 flex-shrink-0" />
+          <input type="checkbox" id="storeVisible" checked={form.visible_to_stores || false} onChange={e => setForm((f: any) => ({...f,visible_to_stores:e.target.checked}))} className="mt-1 accent-amber-500 w-4 h-4 flex-shrink-0" />
           <label htmlFor="storeVisible" className="cursor-pointer">
             <p className="text-sm text-amber-200 font-medium">Let local game stores see my profile</p>
-            <p className="text-xs text-stone-400 mt-0.5">Store owners can see your name, games, and city to help them stock games and plan events their community wants. Your contact info is never shared.</p>
+            <p className="text-xs text-stone-400 mt-0.5">Store owners can see your name, games, and city to help them stock games and plan events. Your contact info is never shared.</p>
           </label>
         </div>
       </div>
-      <button onClick={handleSave} disabled={!form.name || !form.city || !form.games.length || !form.date_of_birth || saving}
-        className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
-        {saving ? "Saving..." : "Save Profile →"}
-      </button>
+      <button onClick={handleSave} disabled={!form.name||!form.city||!form.games.length||!form.date_of_birth||saving} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">{saving ? "Saving..." : "Save Profile →"}</button>
     </div>
   );
 }
@@ -527,8 +499,7 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
           averages[r.player_id].push(r.score);
           if (myProfile && r.rater_id === myProfile.id) mine[r.player_id] = r.score;
         });
-        setRatings(averages);
-        setMyRatings(mine);
+        setRatings(averages); setMyRatings(mine);
       }
       if (myProfile) {
         const { data: blockData } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", myProfile.id);
@@ -552,13 +523,8 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
   const blockPlayer = async (playerId: string) => {
     if (!myProfile) return;
     const isBlocked = blockedIds.includes(playerId);
-    if (isBlocked) {
-      await supabase.from("blocks").delete().eq("blocker_id", myProfile.id).eq("blocked_id", playerId);
-      setBlockedIds(ids => ids.filter(id => id !== playerId));
-    } else {
-      await supabase.from("blocks").insert([{ blocker_id: myProfile.id, blocked_id: playerId }]);
-      setBlockedIds(ids => [...ids, playerId]);
-    }
+    if (isBlocked) { await supabase.from("blocks").delete().eq("blocker_id", myProfile.id).eq("blocked_id", playerId); setBlockedIds(ids => ids.filter(id => id !== playerId)); }
+    else { await supabase.from("blocks").insert([{ blocker_id: myProfile.id, blocked_id: playerId }]); setBlockedIds(ids => [...ids, playerId]); }
   };
 
   const sendFriendRequest = async (playerId: string) => {
@@ -569,10 +535,7 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
 
   const getFriendStatus = (playerId: string) => {
     if (!myProfile) return null;
-    const fs = friendships.find(f =>
-      (f.sender_id === myProfile.id && f.receiver_id === playerId) ||
-      (f.receiver_id === myProfile.id && f.sender_id === playerId)
-    );
+    const fs = friendships.find(f => (f.sender_id===myProfile.id&&f.receiver_id===playerId)||(f.receiver_id===myProfile.id&&f.sender_id===playerId));
     if (!fs) return null;
     if (fs.status === "accepted") return "friends";
     if (fs.sender_id === myProfile.id) return "pending_sent";
@@ -585,28 +548,17 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
     await supabase.from("reports").insert([{ reporter_id: myProfile.id, reported_id: reportTarget.id, reason: reportReason, details: reportDetails, status: "pending" }]);
     await supabase.functions.invoke("report-notification", { body: { reporterName: myProfile.name, reportedName: reportTarget.name, reportedEmail: null, reason: reportReason, details: reportDetails } });
     setReportTarget(null); setReportReason(""); setReportDetails(""); setReportSaving(false);
-    alert("Report submitted. Thank you for helping keep TableFinder safe.");
+    alert("Report submitted. Thank you for helping keep The Notice Board safe.");
   };
 
-  const getAverage = (playerId: string) => {
-    const r = ratings[playerId];
-    if (!r || r.length === 0) return null;
-    return (r.reduce((a, b) => a + b, 0) / r.length).toFixed(1);
-  };
-
-  const filtered = players
-    .filter(p => p.user_id !== myProfile?.user_id)
-    .filter(p => !blockedIds.includes(p.id))
-    .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.games?.some((g: string) => g.toLowerCase().includes(search.toLowerCase())));
-
+  const getAverage = (playerId: string) => { const r = ratings[playerId]; if (!r||r.length===0) return null; return (r.reduce((a,b)=>a+b,0)/r.length).toFixed(1); };
+  const filtered = players.filter(p=>p.user_id!==myProfile?.user_id).filter(p=>!blockedIds.includes(p.id)).filter(p=>!search||p.name.toLowerCase().includes(search.toLowerCase())||p.games?.some((g:string)=>g.toLowerCase().includes(search.toLowerCase())));
   if (loading) return <LoadingSpinner />;
   const REPORT_REASONS = ["Harassment","Inappropriate behavior","Spam","Underage user","Other"];
 
   return (
     <div>
-      <input value={search} onChange={e => setSearch(e.target.value)}
-        className="w-full mb-4 bg-stone-800 border border-stone-700 rounded-lg px-4 py-2 text-white text-sm focus:border-amber-500 outline-none"
-        placeholder="🔍 Search players or games..." />
+      <input value={search} onChange={e => setSearch(e.target.value)} className="w-full mb-4 bg-stone-800 border border-stone-700 rounded-lg px-4 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="🔍 Search players or games..." />
       {filtered.length === 0 && <div className="text-center text-stone-500 py-16"><div className="text-4xl mb-3">👥</div><p>No other players yet.</p><p className="text-sm mt-1">Invite friends to join!</p></div>}
       <div className="space-y-3">
         {filtered.map(p => {
@@ -627,25 +579,19 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
                   <div className="flex flex-wrap gap-1 mb-2">{p.games?.map((g: string) => <GameTag key={g} game={g} />)}</div>
                   {p.bio && <p className="text-xs text-stone-400 italic mb-2">"{p.bio}"</p>}
                   <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1">
-                      {[1,2,3,4,5].map(n => (
-                        <button key={n} onClick={() => myProfile && ratePlayer(p.id, n)}
-                          className={`text-lg transition-transform hover:scale-125 ${myProfile ? "cursor-pointer" : "cursor-default"} ${myScore >= n ? "opacity-100" : "opacity-30"}`}>🎲</button>
-                      ))}
-                    </div>
-                    {avg ? <span className="text-xs text-amber-400">{avg} avg ({ratings[p.id]?.length} {ratings[p.id]?.length === 1 ? "rating" : "ratings"})</span>
-                      : <span className="text-xs text-stone-500">No ratings yet</span>}
+                    <div className="flex items-center gap-1">{[1,2,3,4,5].map(n => <button key={n} onClick={() => myProfile&&ratePlayer(p.id,n)} className={`text-lg transition-transform hover:scale-125 ${myProfile?"cursor-pointer":"cursor-default"} ${myScore>=n?"opacity-100":"opacity-30"}`}>🎲</button>)}</div>
+                    {avg ? <span className="text-xs text-amber-400">{avg} avg ({ratings[p.id]?.length} {ratings[p.id]?.length===1?"rating":"ratings"})</span> : <span className="text-xs text-stone-500">No ratings yet</span>}
                   </div>
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <button onClick={() => onMessage(p)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-amber-800 text-stone-200 rounded-lg transition-colors whitespace-nowrap">Message</button>
                   {myProfile && (
-                    friendStatus === "friends" ? <span className="text-xs px-3 py-1.5 bg-green-900/40 text-green-400 rounded-lg text-center whitespace-nowrap">Friends ✓</span>
-                    : friendStatus === "pending_sent" ? <span className="text-xs px-3 py-1.5 bg-stone-700 text-stone-500 rounded-lg text-center whitespace-nowrap">Requested</span>
-                    : friendStatus === "pending_received" ? <span className="text-xs px-3 py-1.5 bg-amber-900/40 text-amber-400 rounded-lg text-center whitespace-nowrap">Wants to connect</span>
+                    friendStatus==="friends" ? <span className="text-xs px-3 py-1.5 bg-green-900/40 text-green-400 rounded-lg text-center whitespace-nowrap">Friends ✓</span>
+                    : friendStatus==="pending_sent" ? <span className="text-xs px-3 py-1.5 bg-stone-700 text-stone-500 rounded-lg text-center whitespace-nowrap">Requested</span>
+                    : friendStatus==="pending_received" ? <span className="text-xs px-3 py-1.5 bg-amber-900/40 text-amber-400 rounded-lg text-center whitespace-nowrap">Wants to connect</span>
                     : <button onClick={() => sendFriendRequest(p.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-green-900 text-stone-400 hover:text-green-300 rounded-lg transition-colors whitespace-nowrap">+ Friend</button>
                   )}
-                  <button onClick={() => blockPlayer(p.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors whitespace-nowrap">{blockedIds.includes(p.id) ? "Unblock" : "Block"}</button>
+                  <button onClick={() => blockPlayer(p.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors whitespace-nowrap">{blockedIds.includes(p.id)?"Unblock":"Block"}</button>
                   <button onClick={() => setReportTarget(p)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-orange-900 text-stone-400 hover:text-orange-300 rounded-lg transition-colors whitespace-nowrap">Report</button>
                 </div>
               </div>
@@ -656,19 +602,11 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
       {reportTarget && (
         <Modal title={`Report ${reportTarget.name}`} onClose={() => setReportTarget(null)}>
           <div className="space-y-4">
-            <p className="text-sm text-stone-400">Help keep TableFinder safe by reporting players who violate our community standards.</p>
-            <div>
-              <label className="block text-sm text-stone-400 mb-2">Reason *</label>
-              <div className="flex flex-wrap gap-2">
-                {REPORT_REASONS.map(r => <button key={r} onClick={() => setReportReason(r)} className={`text-xs px-3 py-1.5 rounded-full border transition-all ${reportReason === r ? "bg-red-900 border-red-600 text-red-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{r}</button>)}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm text-stone-400 mb-1">Additional details</label>
-              <textarea value={reportDetails} onChange={e => setReportDetails(e.target.value)} rows={3} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Describe what happened..." />
-            </div>
+            <p className="text-sm text-stone-400">Help keep The Notice Board safe by reporting players who violate our community standards.</p>
+            <div><label className="block text-sm text-stone-400 mb-2">Reason *</label><div className="flex flex-wrap gap-2">{REPORT_REASONS.map(r => <button key={r} onClick={() => setReportReason(r)} className={`text-xs px-3 py-1.5 rounded-full border transition-all ${reportReason===r?"bg-red-900 border-red-600 text-red-100":"border-stone-600 text-stone-400 hover:border-stone-400"}`}>{r}</button>)}</div></div>
+            <div><label className="block text-sm text-stone-400 mb-1">Additional details</label><textarea value={reportDetails} onChange={e => setReportDetails(e.target.value)} rows={3} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Describe what happened..." /></div>
             <p className="text-xs text-stone-500">Your report is anonymous. Our team will review it and take appropriate action.</p>
-            <button onClick={submitReport} disabled={!reportReason || reportSaving} className="w-full py-3 bg-red-800 hover:bg-red-700 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{reportSaving ? "Submitting..." : "Submit Report"}</button>
+            <button onClick={submitReport} disabled={!reportReason||reportSaving} className="w-full py-3 bg-red-800 hover:bg-red-700 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{reportSaving?"Submitting...":"Submit Report"}</button>
           </div>
         </Modal>
       )}
@@ -682,7 +620,8 @@ function EventsTab({ myProfile }: { myProfile: any }) {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ title:"", date:"", time:"", location:"", games:[] as string[], max_players:6, description:"" });
+  const [filter, setFilter] = useState<"all"|"store"|"player">("all");
+  const [form, setForm] = useState({ title:"", date:"", time:"", location:"", games:[] as string[], max_players:6, description:"", event_type:"One Shot", recurring:false, recurring_frequency:"" });
 
   useEffect(() => {
     const fetchEvents = async () => {
@@ -700,40 +639,62 @@ function EventsTab({ myProfile }: { myProfile: any }) {
     const alreadyJoined = joined.includes(myProfile.id);
     const updated = alreadyJoined ? joined.filter((id: string) => id !== myProfile.id) : [...joined, myProfile.id];
     await supabase.from("events").update({ joined: updated }).eq("id", event.id);
-    setEvents(evs => evs.map(e => e.id === event.id ? {...e, joined: updated} : e));
+    setEvents(evs => evs.map(e => e.id===event.id ? {...e, joined: updated} : e));
   };
 
   const createEvent = async () => {
     if (!form.title || !form.date || !myProfile) return;
     setSaving(true);
-    const { data } = await supabase.from("events").insert([{ ...form, host: myProfile.name, joined: [] }]).select();
+    const { data } = await supabase.from("events").insert([{ ...form, host: myProfile.name, event_type: "player", joined: [] }]).select();
     if (data) setEvents(evs => [...evs, data[0]]);
     setShowCreate(false);
-    setForm({ title:"", date:"", time:"", location:"", games:[], max_players:6, description:"" });
+    setForm({ title:"", date:"", time:"", location:"", games:[], max_players:6, description:"", event_type:"One Shot", recurring:false, recurring_frequency:"" });
     setSaving(false);
   };
 
   const toggleGame = (game: string) => setForm(f => ({...f, games: f.games.includes(game) ? f.games.filter(g => g !== game) : [...f.games, game]}));
 
+  const filtered = events.filter(e => {
+    if (filter === "store") return e.store_id != null;
+    if (filter === "player") return e.store_id == null;
+    return true;
+  });
+
   if (loading) return <LoadingSpinner />;
 
   return (
     <div>
+      {/* Filter Toggle */}
+      <div className="flex gap-1 mb-4 bg-stone-800 rounded-lg p-1">
+        {[["all","All Events"],["store","🏪 Store Events"],["player","👥 Player Events"]].map(([val, label]) => (
+          <button key={val} onClick={() => setFilter(val as any)}
+            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-colors ${filter===val ? "bg-amber-700 text-white" : "text-stone-400 hover:text-white"}`}>{label}</button>
+        ))}
+      </div>
+
       <button onClick={() => setShowCreate(true)} className="w-full mb-4 py-3 border-2 border-dashed border-stone-600 hover:border-amber-600 text-stone-400 hover:text-amber-400 rounded-xl transition-colors text-sm font-medium">+ Host a New Event</button>
-      {events.length === 0 && <div className="text-center text-stone-500 py-16"><div className="text-4xl mb-3">📅</div><p>No events yet — be the first to host one!</p></div>}
+
+      {filtered.length === 0 && <div className="text-center text-stone-500 py-16"><div className="text-4xl mb-3">📅</div><p>{filter==="store" ? "No store events yet." : filter==="player" ? "No player events yet." : "No events yet — be the first to host one!"}</p></div>}
+
       <div className="space-y-3">
-        {events.map(e => {
+        {filtered.map(e => {
           const spotsLeft = e.max_players - (e.joined?.length || 0);
           const joined = myProfile && e.joined?.includes(myProfile.id);
+          const isStoreEvent = e.store_id != null;
           return (
-            <div key={e.id} className="bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
+            <div key={e.id} className={`bg-stone-800 border rounded-xl p-4 hover:border-amber-700 transition-colors ${isStoreEvent ? "border-amber-900" : "border-stone-700"}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1">
-                  <h3 className="font-semibold text-amber-100 mb-1">{e.title}</h3>
+                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                    <h3 className="font-semibold text-amber-100">{e.title}</h3>
+                    {isStoreEvent && <span className="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded-full">🏪 Store Event</span>}
+                    {e.event_type && e.event_type !== "player" && e.event_type !== "store" && <span className="text-xs bg-stone-700 text-stone-300 px-2 py-0.5 rounded-full">{e.event_type}</span>}
+                    {e.recurring && <span className="text-xs bg-blue-900 text-blue-300 px-2 py-0.5 rounded-full">🔁 {e.recurring_frequency}</span>}
+                  </div>
                   <div className="flex flex-wrap gap-1 mb-2">{e.games?.map((g: string) => <GameTag key={g} game={g} />)}</div>
                   <p className="text-xs text-stone-400">📅 {e.date}{e.time && ` • ${e.time}`}</p>
-                  <p className="text-xs text-stone-400">📍 {e.location}</p>
-                  <p className="text-xs text-stone-400">👤 Hosted by {e.host}</p>
+                  {e.location && <p className="text-xs text-stone-400">📍 {e.location}</p>}
+                  <p className="text-xs text-stone-400">👤 {isStoreEvent ? `🏪 ${e.store_name}` : `Hosted by ${e.host}`}</p>
                   {e.description && <p className="text-xs text-stone-500 mt-2 italic">{e.description}</p>}
                 </div>
                 <div className="text-right flex-shrink-0">
@@ -748,10 +709,15 @@ function EventsTab({ myProfile }: { myProfile: any }) {
           );
         })}
       </div>
+
       {showCreate && (
         <Modal title="Host a New Event" onClose={() => setShowCreate(false)}>
           <div className="space-y-4">
             <div><label className="block text-sm text-stone-400 mb-1">Event Title *</label><input value={form.title} onChange={e => setForm(f => ({...f,title:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. D&D One-Shot: The Lost Vault" /></div>
+            <div>
+              <label className="block text-sm text-stone-400 mb-2">Event Type</label>
+              <div className="flex flex-wrap gap-1.5">{EVENT_TYPES.map(t => <button key={t} onClick={() => setForm(f => ({...f,event_type:t}))} className={`text-xs px-3 py-1 rounded-full border transition-all ${form.event_type===t ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{t}</button>)}</div>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="block text-sm text-stone-400 mb-1">Date *</label><input type="date" value={form.date} onChange={e => setForm(f => ({...f,date:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" /></div>
               <div><label className="block text-sm text-stone-400 mb-1">Time</label><input value={form.time} onChange={e => setForm(f => ({...f,time:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 6:00 PM" /></div>
@@ -762,8 +728,20 @@ function EventsTab({ myProfile }: { myProfile: any }) {
               <div className="flex flex-wrap gap-1.5">{[...GAMES.ttrpg,...GAMES.tcg,...GAMES.wargames].map(g => <button key={g} onClick={() => toggleGame(g)} className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.games.includes(g)?"bg-amber-800 border-amber-600 text-amber-100":"border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>)}</div>
             </div>
             <div><label className="block text-sm text-stone-400 mb-1">Max Players: {form.max_players}</label><input type="range" min={2} max={20} value={form.max_players} onChange={e => setForm(f => ({...f,max_players:+e.target.value}))} className="w-full accent-amber-500" /></div>
+            <div className="bg-stone-800 border border-stone-700 rounded-xl p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <input type="checkbox" id="playerRecurring" checked={form.recurring} onChange={e => setForm(f => ({...f,recurring:e.target.checked}))} className="accent-amber-500 w-4 h-4" />
+                <label htmlFor="playerRecurring" className="text-sm text-amber-200 font-medium cursor-pointer">🔁 Recurring Event</label>
+              </div>
+              {form.recurring && (
+                <div>
+                  <label className="block text-sm text-stone-400 mb-2">Frequency</label>
+                  <div className="flex flex-wrap gap-1.5">{["Weekly","Bi-weekly","Monthly"].map(f => <button key={f} onClick={() => setForm(ef => ({...ef,recurring_frequency:f}))} className={`text-xs px-3 py-1 rounded-full border transition-all ${form.recurring_frequency===f ? "bg-blue-800 border-blue-600 text-blue-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{f}</button>)}</div>
+                </div>
+              )}
+            </div>
             <div><label className="block text-sm text-stone-400 mb-1">Description</label><textarea value={form.description} onChange={e => setForm(f => ({...f,description:e.target.value}))} rows={3} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Describe the event, experience requirements, etc." /></div>
-            <button onClick={createEvent} disabled={!form.title||!form.date||saving} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{saving ? "Creating..." : "Create Event"}</button>
+            <button onClick={createEvent} disabled={!form.title||!form.date||saving} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{saving?"Creating...":"Create Event"}</button>
           </div>
         </Modal>
       )}
@@ -780,16 +758,14 @@ function StoresTab() {
   const [searched, setSearched] = useState(false);
   const [viewProfile, setViewProfile] = useState<any>(null);
 
-  useEffect(() => {
-    supabase.from("stores").select("*").order("created_at", { ascending: false }).then(({ data }) => setStoreProfiles(data || []));
-  }, []);
+  useEffect(() => { supabase.from("stores").select("*").order("created_at", { ascending: false }).then(({ data }) => setStoreProfiles(data || [])); }, []);
 
   const searchByCoords = async (lat: number, lng: number) => {
     try {
       const res = await fetch("/api/stores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lat, lng }) });
       const data = await res.json();
       if (data.places && data.places.length > 0) { setStores(data.places); setSearched(true); }
-      else setError("No stores found nearby. Try searching a nearby city instead.");
+      else setError("No stores found nearby.");
     } catch { setError("Couldn't fetch stores. Try again!"); }
     setLoading(false);
   };
@@ -797,8 +773,8 @@ function StoresTab() {
   const findByGPS = () => {
     setLoading(true); setError(null); setStores([]);
     navigator.geolocation.getCurrentPosition(
-      (pos) => searchByCoords(pos.coords.latitude, pos.coords.longitude),
-      () => { setError("Location access denied. Please enable location permissions."); setLoading(false); }
+      pos => searchByCoords(pos.coords.latitude, pos.coords.longitude),
+      () => { setError("Location access denied."); setLoading(false); }
     );
   };
 
@@ -809,16 +785,13 @@ function StoresTab() {
     <div>
       {storeProfiles.length > 0 && (
         <div className="mb-6">
-          <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">🏪 On TableFinder</h3>
+          <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">🏪 On The Notice Board</h3>
           <div className="space-y-2">
             {storeProfiles.map(sp => (
               <button key={sp.id} onClick={() => setViewProfile(sp)} className="w-full text-left bg-stone-800 border border-amber-900 rounded-xl p-4 hover:border-amber-600 transition-colors">
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-semibold text-amber-100">{sp.name}</span>
-                      <span className="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded-full">TableFinder Store</span>
-                    </div>
+                    <div className="flex items-center gap-2 mb-1"><span className="font-semibold text-amber-100">{sp.name}</span><span className="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded-full">Notice Board Store</span></div>
                     <p className="text-xs text-stone-400">📍 {sp.address}, {sp.city}</p>
                     {sp.hours && <p className="text-xs text-stone-400">🕐 {sp.hours}</p>}
                     {sp.games_carried?.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{sp.games_carried.slice(0,4).map((g: string) => <GameTag key={g} game={g} />)}</div>}
@@ -844,7 +817,7 @@ function StoresTab() {
             <button key={store.id} onClick={() => setViewProfile(profile)} className="w-full text-left bg-stone-800 border border-amber-700 rounded-xl p-4 hover:border-amber-500 transition-colors">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1"><h3 className="font-semibold text-amber-100">{store.displayName?.text}</h3><span className="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded-full">On TableFinder</span></div>
+                  <div className="flex items-center gap-2 mb-1"><h3 className="font-semibold text-amber-100">{store.displayName?.text}</h3><span className="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded-full">On Notice Board</span></div>
                   <p className="text-xs text-stone-400 mb-2">📍 {store.formattedAddress}</p>
                   {store.rating && <span className="text-xs text-stone-300">{renderStars(store.rating)} {store.rating} ({store.userRatingCount} reviews)</span>}
                 </div>
@@ -875,12 +848,8 @@ function StoresTab() {
               {viewProfile.website && <a href={viewProfile.website} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:underline mt-1 block">🌐 {viewProfile.website}</a>}
             </div>
             {viewProfile.description && <p className="text-sm text-stone-300 italic">"{viewProfile.description}"</p>}
-            {viewProfile.open_days?.length > 0 && (
-              <div><p className="text-xs text-stone-500 mb-1.5">Open days:</p><div className="flex flex-wrap gap-1">{viewProfile.open_days.map((d: string) => <span key={d} className="text-xs px-2 py-0.5 bg-stone-700 text-stone-300 rounded-full">{d}</span>)}</div></div>
-            )}
-            {viewProfile.games_carried?.length > 0 && (
-              <div><p className="text-xs text-stone-500 mb-1.5">Games we carry:</p><div className="flex flex-wrap gap-1">{viewProfile.games_carried.map((g: string) => <GameTag key={g} game={g} />)}</div></div>
-            )}
+            {viewProfile.open_days?.length > 0 && <div><p className="text-xs text-stone-500 mb-1.5">Open days:</p><div className="flex flex-wrap gap-1">{viewProfile.open_days.map((d: string) => <span key={d} className="text-xs px-2 py-0.5 bg-stone-700 text-stone-300 rounded-full">{d}</span>)}</div></div>}
+            {viewProfile.games_carried?.length > 0 && <div><p className="text-xs text-stone-500 mb-1.5">Games we carry:</p><div className="flex flex-wrap gap-1">{viewProfile.games_carried.map((g: string) => <GameTag key={g} game={g} />)}</div></div>}
           </div>
         </Modal>
       )}
@@ -914,10 +883,7 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
     setShowCreate(false); setForm({ game:"", title:"", body:"" }); setSaving(false);
   };
 
-  const deletePost = async (postId: string) => {
-    await supabase.from("lfg_posts").delete().eq("id", postId);
-    setPosts(p => p.filter(post => post.id !== postId));
-  };
+  const deletePost = async (postId: string) => { await supabase.from("lfg_posts").delete().eq("id", postId); setPosts(p => p.filter(post => post.id !== postId)); };
 
   const timeAgo = (timestamp: string) => {
     const seconds = Math.floor((new Date().getTime() - new Date(timestamp).getTime()) / 1000);
@@ -954,10 +920,10 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
       {showCreate && (
         <Modal title="Post a LFG Request" onClose={() => setShowCreate(false)}>
           <div className="space-y-4">
-            <div><label className="block text-sm text-stone-400 mb-2">Game *</label><div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">{[...GAMES.ttrpg, ...GAMES.tcg, ...GAMES.wargames].map(g => <button key={g} onClick={() => setForm(f => ({...f, game:g}))} className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.game===g ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>)}</div></div>
+            <div><label className="block text-sm text-stone-400 mb-2">Game *</label><div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">{[...GAMES.ttrpg,...GAMES.tcg,...GAMES.wargames].map(g => <button key={g} onClick={() => setForm(f => ({...f,game:g}))} className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.game===g?"bg-amber-800 border-amber-600 text-amber-100":"border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>)}</div></div>
             <div><label className="block text-sm text-stone-400 mb-1">Title *</label><input value={form.title} onChange={e => setForm(f => ({...f,title:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Looking for 2 players for D&D campaign" /></div>
             <div><label className="block text-sm text-stone-400 mb-1">Details</label><textarea value={form.body} onChange={e => setForm(f => ({...f,body:e.target.value}))} rows={4} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Describe what you're looking for, schedule, experience level, etc." /></div>
-            <button onClick={createPost} disabled={!form.game || !form.title || saving} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{saving ? "Posting..." : "Post LFG Request"}</button>
+            <button onClick={createPost} disabled={!form.game||!form.title||saving} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{saving?"Posting...":"Post LFG Request"}</button>
           </div>
         </Modal>
       )}
@@ -1042,9 +1008,9 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
       if (data) {
         const convMap: Record<string, any> = {};
         data.forEach((msg: any) => {
-          const otherId = msg.sender_id === myProfile.id ? msg.receiver_id : msg.sender_id;
-          const otherName = msg.sender_id === myProfile.id ? msg.receiver_name : msg.sender_name;
-          const otherAvatar = msg.sender_id === myProfile.id ? msg.receiver_avatar : msg.sender_avatar;
+          const otherId = msg.sender_id===myProfile.id ? msg.receiver_id : msg.sender_id;
+          const otherName = msg.sender_id===myProfile.id ? msg.receiver_name : msg.sender_name;
+          const otherAvatar = msg.sender_id===myProfile.id ? msg.receiver_avatar : msg.sender_avatar;
           if (!convMap[otherId]) convMap[otherId] = { id: otherId, name: otherName, avatar: otherAvatar, lastMessage: msg.text };
         });
         setConversations(Object.values(convMap));
@@ -1092,7 +1058,7 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
       <div className="flex-1 flex flex-col bg-stone-800 rounded-xl overflow-hidden border border-stone-700">
         {active ? (
           <>
-            <div className="p-3 border-b border-stone-700 flex items-center gap-2"><span className="text-lg">{conversations.find(c => c.id === active)?.avatar}</span><span className="font-medium text-amber-100 text-sm">{conversations.find(c => c.id === active)?.name}</span></div>
+            <div className="p-3 border-b border-stone-700 flex items-center gap-2"><span className="text-lg">{conversations.find(c=>c.id===active)?.avatar}</span><span className="font-medium text-amber-100 text-sm">{conversations.find(c=>c.id===active)?.name}</span></div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {messages.map((m: any) => (
                 <div key={m.id} className={`flex ${m.sender_id===myProfile.id?"justify-end":"justify-start"}`}>
@@ -1138,7 +1104,7 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
 
   const acceptRequest = async (friendshipId: string) => {
     await supabase.from("friendships").update({ status: "accepted" }).eq("id", friendshipId);
-    setFriendships(fs => fs.map(f => f.id === friendshipId ? {...f, status: "accepted"} : f));
+    setFriendships(fs => fs.map(f => f.id===friendshipId ? {...f,status:"accepted"} : f));
   };
   const declineRequest = async (friendshipId: string) => {
     await supabase.from("friendships").delete().eq("id", friendshipId);
@@ -1150,8 +1116,8 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
   };
 
   const getPlayer = (id: string) => players.find(p => p.id === id);
-  const incoming = friendships.filter(f => f.receiver_id === myProfile?.id && f.status === "pending");
-  const accepted = friendships.filter(f => f.status === "accepted");
+  const incoming = friendships.filter(f => f.receiver_id===myProfile?.id && f.status==="pending");
+  const accepted = friendships.filter(f => f.status==="accepted");
 
   if (!myProfile) return <div className="text-center py-16 text-stone-400"><div className="text-4xl mb-4">🤝</div><p>Set up your profile to manage friends.</p></div>;
   if (loading) return <LoadingSpinner />;
@@ -1190,7 +1156,7 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
         ) : (
           <div className="space-y-2">
             {accepted.map(fs => {
-              const friendId = fs.sender_id === myProfile.id ? fs.receiver_id : fs.sender_id;
+              const friendId = fs.sender_id===myProfile.id ? fs.receiver_id : fs.sender_id;
               const friend = getPlayer(friendId);
               if (!friend) return null;
               return (
@@ -1200,7 +1166,7 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-amber-100">{friend.name}</p>
-                        <span className={`text-xs font-medium ${friend.online ? "text-green-400" : "text-stone-500"}`}>{friend.online ? "● Online" : "○ Offline"}</span>
+                        <span className={`text-xs font-medium ${friend.online?"text-green-400":"text-stone-500"}`}>{friend.online?"● Online":"○ Offline"}</span>
                       </div>
                       <p className="text-xs text-stone-400">{friend.city} • {friend.experience}</p>
                       <div className="flex flex-wrap gap-1 mt-1">{friend.games?.slice(0,4).map((g: string) => <GameTag key={g} game={g} />)}</div>
@@ -1237,28 +1203,19 @@ export default function App() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         const type = session.user.user_metadata?.account_type || "player";
-        setAuthUser(session.user);
-        setAccountType(type);
-        if (type === "store") {
-          loadStoreProfile(session.user.id).finally(() => setAuthLoading(false));
-        } else {
-          loadProfile(session.user.id).finally(() => setAuthLoading(false));
-        }
-      } else {
-        setAuthLoading(false);
-      }
+        setAuthUser(session.user); setAccountType(type);
+        if (type === "store") loadStoreProfile(session.user.id).finally(() => setAuthLoading(false));
+        else loadProfile(session.user.id).finally(() => setAuthLoading(false));
+      } else { setAuthLoading(false); }
     }).catch(() => setAuthLoading(false));
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         const type = session.user.user_metadata?.account_type || "player";
-        setAuthUser(session.user);
-        setAccountType(type);
+        setAuthUser(session.user); setAccountType(type);
         if (type === "store") loadStoreProfile(session.user.id);
         else loadProfile(session.user.id);
-      } else {
-        setAuthUser(null); setMyProfile(null); setMyStoreProfile(null); setAccountType("player");
-      }
+      } else { setAuthUser(null); setMyProfile(null); setMyStoreProfile(null); setAccountType("player"); }
     });
     return () => authListener.subscription.unsubscribe();
   }, []);
@@ -1266,16 +1223,14 @@ export default function App() {
   const loadProfile = async (userId: string): Promise<void> => {
     try {
       const { data } = await supabase.from("players").select("*").eq("user_id", userId).maybeSingle();
-      if (data) { setMyProfile(data); setShowProfile(false); }
-      else { setMyProfile(null); setShowProfile(true); }
+      if (data) { setMyProfile(data); setShowProfile(false); } else { setMyProfile(null); setShowProfile(true); }
     } catch { setShowProfile(false); }
   };
 
   const loadStoreProfile = async (userId: string): Promise<void> => {
     try {
       const { data } = await supabase.from("stores").select("*").eq("user_id", userId).maybeSingle();
-      if (data) { setMyStoreProfile(data); setShowStoreProfile(false); }
-      else { setMyStoreProfile(null); setShowStoreProfile(true); }
+      if (data) { setMyStoreProfile(data); setShowStoreProfile(false); } else { setMyStoreProfile(null); setShowStoreProfile(true); }
     } catch { setShowStoreProfile(false); }
   };
 
@@ -1316,12 +1271,7 @@ export default function App() {
 
   const startConversation = async (player: any) => {
     if (!myProfile) return;
-    await supabase.from("messages").insert([{
-      sender_id: myProfile.id, receiver_id: player.id,
-      sender_name: myProfile.name, receiver_name: player.name,
-      sender_avatar: myProfile.avatar, receiver_avatar: player.avatar,
-      text: msgText || `Hey! I saw your profile. Want to play ${player.games?.[0]}?`,
-    }]);
+    await supabase.from("messages").insert([{ sender_id: myProfile.id, receiver_id: player.id, sender_name: myProfile.name, receiver_name: player.name, sender_avatar: myProfile.avatar, receiver_avatar: player.avatar, text: msgText || `Hey! I saw your profile. Want to play ${player.games?.[0]}?` }]);
     setMsgTarget(null); setMsgText(""); setTab("messages");
   };
 
@@ -1337,46 +1287,38 @@ export default function App() {
 
   if (authLoading) return (
     <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-      <div className="text-center"><div className="text-5xl mb-4">⚔️</div><p className="text-stone-400">Loading TableFinder...</p></div>
+      <div className="text-center"><div className="text-5xl mb-4">⚔️</div><p className="text-stone-400">Loading The Notice Board...</p></div>
     </div>
   );
 
   if (!authUser) return <AuthScreen onAuth={handleAuth} />;
 
-  // ── Store Account View ───────────────────────────────────────────────────────
   if (accountType === "store") {
     if (!myStoreProfile) return (
       <div className="min-h-screen bg-stone-950 text-white" style={{fontFamily:"'Georgia',serif"}}>
         <header className="sticky top-0 z-40 bg-stone-950/95 backdrop-blur border-b border-stone-800">
           <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-            <h1 className="text-xl font-bold text-amber-300" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>⚔️ TableFinder</h1>
+            <h1 className="text-xl font-bold text-amber-300" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>⚔️ The Notice Board</h1>
             <button onClick={handleSignOut} className="text-xs text-stone-500 hover:text-stone-300 px-2 py-2 transition-colors">Sign Out</button>
           </div>
         </header>
-        <main className="max-w-2xl mx-auto px-4 py-5">
-          <StoreProfileSetup existing={null} onSave={saveStoreProfile} />
-        </main>
+        <main className="max-w-2xl mx-auto px-4 py-5"><StoreProfileSetup existing={null} onSave={saveStoreProfile} /></main>
       </div>
     );
     return (
       <>
         <StoreDashboard storeProfile={myStoreProfile} onEditProfile={() => setShowStoreProfile(true)} onSignOut={handleSignOut} />
-        {showStoreProfile && (
-          <Modal title="Edit Store Profile" onClose={() => setShowStoreProfile(false)}>
-            <StoreProfileSetup existing={myStoreProfile} onSave={saveStoreProfile} />
-          </Modal>
-        )}
+        {showStoreProfile && <Modal title="Edit Store Profile" onClose={() => setShowStoreProfile(false)}><StoreProfileSetup existing={myStoreProfile} onSave={saveStoreProfile} /></Modal>}
       </>
     );
   }
 
-  // ── Player Account View ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-stone-950 text-white" style={{fontFamily:"'Georgia',serif"}}>
       <header className="sticky top-0 z-40 bg-stone-950/95 backdrop-blur border-b border-stone-800">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-bold text-amber-300" style={{fontFamily:"'Palatino Linotype',Palatino,serif",letterSpacing:"0.02em"}}>⚔️ TableFinder</h1>
+            <h1 className="text-xl font-bold text-amber-300" style={{fontFamily:"'Palatino Linotype',Palatino,serif",letterSpacing:"0.02em"}}>⚔️ The Notice Board</h1>
             <p className="text-xs text-stone-500">Find your adventuring party</p>
           </div>
           <div className="flex items-center gap-2">
@@ -1390,8 +1332,7 @@ export default function App() {
       <div className="sticky top-14 z-30 bg-stone-950/95 backdrop-blur border-b border-stone-800 overflow-x-auto">
         <div className="max-w-2xl mx-auto px-4 flex min-w-max">
           {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)}
-              className={`px-3 py-3 text-xs font-medium transition-colors whitespace-nowrap ${tab===t.id?"text-amber-300 border-b-2 border-amber-400":"text-stone-400 hover:text-stone-200"}`}>
+            <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-3 text-xs font-medium transition-colors whitespace-nowrap ${tab===t.id?"text-amber-300 border-b-2 border-amber-400":"text-stone-400 hover:text-stone-200"}`}>
               <span className="mr-1">{t.icon}</span>{t.label}
             </button>
           ))}
@@ -1406,28 +1347,16 @@ export default function App() {
         {tab==="friends" && <FriendsTab myProfile={myProfile} onMessage={setMsgTarget} />}
         {tab==="messages" && <MessagesTab myProfile={myProfile} />}
       </main>
-      {showProfile && (
-        <Modal title={myProfile ? "Edit Profile" : "Create Your Profile"} onClose={() => setShowProfile(false)}>
-          <ProfileSetup existing={myProfile} onSave={saveProfile} />
-        </Modal>
-      )}
+      {showProfile && <Modal title={myProfile ? "Edit Profile" : "Create Your Profile"} onClose={() => setShowProfile(false)}><ProfileSetup existing={myProfile} onSave={saveProfile} /></Modal>}
       {msgTarget && (
         <Modal title={`Message ${msgTarget.name}`} onClose={() => setMsgTarget(null)}>
           <div className="space-y-4">
             <div className="flex items-center gap-3 bg-stone-800 rounded-lg p-3">
               <AvatarEl emoji={msgTarget.avatar} online={msgTarget.online} />
-              <div>
-                <p className="font-medium text-amber-100">{msgTarget.name}</p>
-                <div className="flex flex-wrap gap-1 mt-1">{msgTarget.games?.slice(0,3).map((g: string) => <GameTag key={g} game={g} />)}</div>
-              </div>
+              <div><p className="font-medium text-amber-100">{msgTarget.name}</p><div className="flex flex-wrap gap-1 mt-1">{msgTarget.games?.slice(0,3).map((g: string) => <GameTag key={g} game={g} />)}</div></div>
             </div>
-            <textarea value={msgText} onChange={e => setMsgText(e.target.value)} rows={4}
-              className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
-              placeholder={`Hey ${msgTarget.name}! I saw you play ${msgTarget.games?.[0]}...`} />
-            <button onClick={() => { startConversation(msgTarget); setMsgText(""); }}
-              className="w-full py-3 bg-amber-700 hover:bg-amber-600 text-white font-bold rounded-lg transition-colors">
-              Send Message
-            </button>
+            <textarea value={msgText} onChange={e => setMsgText(e.target.value)} rows={4} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder={`Hey ${msgTarget.name}! I saw you play ${msgTarget.games?.[0]}...`} />
+            <button onClick={() => { startConversation(msgTarget); setMsgText(""); }} className="w-full py-3 bg-amber-700 hover:bg-amber-600 text-white font-bold rounded-lg transition-colors">Send Message</button>
           </div>
         </Modal>
       )}
