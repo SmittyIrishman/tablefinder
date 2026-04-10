@@ -7,6 +7,14 @@ const GAMES = {
   wargames: ["Warhammer 40K","Warhammer Age of Sigmar","Horus Heresy","Kill Team","Warcry","Star Wars: Legion","Bolt Action","Flames of War","Infinity","Kings of War","One Page Rules","Battletech"],
 };
 const EXPERIENCE = ["New Player","Casual","Intermediate","Competitive","Game Master / Judge"];
+const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+
+function GameTag({ game }: { game: string }) {
+  const isWargame = GAMES.wargames.includes(game);
+  const isTCG = GAMES.tcg.includes(game);
+  const style = isWargame ? "bg-red-900 text-red-200" : isTCG ? "bg-blue-900 text-blue-200" : "bg-amber-900 text-amber-200";
+  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${style}`}>{game}</span>;
+}
 
 function AvatarEl({ emoji, size = "md", online }: { emoji: string; size?: string; online?: boolean }) {
   const sizes: Record<string, string> = { sm:"w-8 h-8 text-lg", md:"w-12 h-12 text-2xl", lg:"w-16 h-16 text-3xl" };
@@ -16,13 +24,6 @@ function AvatarEl({ emoji, size = "md", online }: { emoji: string; size?: string
       {online !== undefined && <span className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-stone-900 ${online ? "bg-green-400" : "bg-stone-500"}`} />}
     </div>
   );
-}
-
-function GameTag({ game }: { game: string }) {
-  const isWargame = GAMES.wargames.includes(game);
-  const isTCG = GAMES.tcg.includes(game);
-  const style = isWargame ? "bg-red-900 text-red-200" : isTCG ? "bg-blue-900 text-blue-200" : "bg-amber-900 text-amber-200";
-  return <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${style}`}>{game}</span>;
 }
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
@@ -49,8 +50,9 @@ function LoadingSpinner() {
 }
 
 // ── Auth Screen ────────────────────────────────────────────────────────────────
-function AuthScreen({ onAuth }: { onAuth: (user: any) => void }) {
+function AuthScreen({ onAuth }: { onAuth: (user: any, accountType: string) => void }) {
   const [mode, setMode] = useState("signin");
+  const [accountType, setAccountType] = useState("player");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [ageConfirmed, setAgeConfirmed] = useState(false);
@@ -70,13 +72,16 @@ function AuthScreen({ onAuth }: { onAuth: (user: any) => void }) {
       return;
     }
     if (mode === "signup") {
-      const { data, error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email, password, options: { data: { account_type: accountType } } });
       if (error) setError(error.message);
-      else { setMessage("Account created! You are now signed in."); onAuth(data.user); }
+      else { setMessage("Account created! You are now signed in."); onAuth(data.user, accountType); }
     } else {
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (error) setError(error.message);
-      else onAuth(data.user);
+      else {
+        const type = data.user?.user_metadata?.account_type || "player";
+        onAuth(data.user, type);
+      }
     }
     setLoading(false);
   };
@@ -95,6 +100,25 @@ function AuthScreen({ onAuth }: { onAuth: (user: any) => void }) {
                 className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode==="signin" ? "bg-amber-700 text-white" : "text-stone-400 hover:text-white"}`}>Sign In</button>
               <button onClick={() => { setMode("signup"); setError(null); setMessage(null); }}
                 className={`flex-1 py-2 rounded-md text-sm font-medium transition-colors ${mode==="signup" ? "bg-amber-700 text-white" : "text-stone-400 hover:text-white"}`}>Create Account</button>
+            </div>
+          )}
+          {mode === "signup" && (
+            <div className="mb-5">
+              <label className="block text-sm text-stone-400 mb-2">I am signing up as a...</label>
+              <div className="grid grid-cols-2 gap-2">
+                <button onClick={() => setAccountType("player")}
+                  className={`py-3 px-4 rounded-xl border-2 transition-all text-left ${accountType==="player" ? "border-amber-500 bg-amber-900/30" : "border-stone-700 bg-stone-800 hover:border-stone-500"}`}>
+                  <div className="text-xl mb-1">🎲</div>
+                  <div className="text-sm font-medium text-amber-100">Player</div>
+                  <div className="text-xs text-stone-400">Find games and players</div>
+                </button>
+                <button onClick={() => setAccountType("store")}
+                  className={`py-3 px-4 rounded-xl border-2 transition-all text-left ${accountType==="store" ? "border-amber-500 bg-amber-900/30" : "border-stone-700 bg-stone-800 hover:border-stone-500"}`}>
+                  <div className="text-xl mb-1">🏪</div>
+                  <div className="text-sm font-medium text-amber-100">Game Store</div>
+                  <div className="text-xs text-stone-400">Build your community</div>
+                </button>
+              </div>
             </div>
           )}
           {mode === "reset" && (
@@ -118,13 +142,14 @@ function AuthScreen({ onAuth }: { onAuth: (user: any) => void }) {
             )}
             {error && <div className="bg-red-900/40 border border-red-700 rounded-lg px-3 py-2 text-red-300 text-sm">{error}</div>}
             {message && <div className="bg-green-900/40 border border-green-700 rounded-lg px-3 py-2 text-green-300 text-sm">{message}</div>}
-            {mode === "signup" && (
+            {mode === "signup" && accountType === "player" && (
               <div className="flex items-start gap-3">
                 <input type="checkbox" id="ageConfirm" checked={ageConfirmed} onChange={e => setAgeConfirmed(e.target.checked)} className="mt-1 accent-amber-500 w-4 h-4 flex-shrink-0" />
                 <label htmlFor="ageConfirm" className="text-sm text-stone-400 cursor-pointer">I confirm that I am <span className="text-amber-300 font-medium">18 years of age or older</span></label>
               </div>
             )}
-            <button onClick={handleSubmit} disabled={!email || (!password && mode !== "reset") || loading || (mode === "signup" && !ageConfirmed)}
+            <button onClick={handleSubmit}
+              disabled={!email || (!password && mode !== "reset") || loading || (mode === "signup" && accountType === "player" && !ageConfirmed)}
               className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
               {loading ? "Please wait..." : mode === "reset" ? "Send Reset Email" : mode === "signup" ? "Create Account →" : "Sign In →"}
             </button>
@@ -142,9 +167,238 @@ function AuthScreen({ onAuth }: { onAuth: (user: any) => void }) {
   );
 }
 
-// ── Profile Setup ──────────────────────────────────────────────────────────────
+// ── Store Profile Setup ────────────────────────────────────────────────────────
+function StoreProfileSetup({ existing, onSave }: { existing: any; onSave: (form: any) => Promise<void> }) {
+  const [form, setForm] = useState(existing || { name:"", address:"", city:"", phone:"", website:"", description:"", games_carried:[], open_days:[], hours:"" });
+  const [saving, setSaving] = useState(false);
+
+  const toggleGame = (game: string) => setForm((f: any) => ({ ...f, games_carried: f.games_carried.includes(game) ? f.games_carried.filter((g: string) => g !== game) : [...f.games_carried, game] }));
+  const toggleDay = (day: string) => setForm((f: any) => ({ ...f, open_days: f.open_days.includes(day) ? f.open_days.filter((d: string) => d !== day) : [...f.open_days, day] }));
+
+  const handleSave = async () => {
+    if (!form.name || !form.address || !form.city) return;
+    setSaving(true);
+    await onSave(form);
+    setSaving(false);
+  };
+
+  const gameSections: [string, string, string][] = [["TTRPGs","ttrpg","amber"],["TCGs","tcg","blue"],["Wargames & Miniatures","wargames","red"]];
+
+  return (
+    <div className="space-y-5">
+      <div className="bg-amber-900/20 border border-amber-800 rounded-xl p-4">
+        <p className="text-sm text-amber-200">Welcome to TableFinder for Stores! Set up your store profile so local players can find you.</p>
+      </div>
+      <div>
+        <label className="block text-sm text-stone-400 mb-1">Store Name *</label>
+        <input value={form.name} onChange={e => setForm((f: any) => ({...f, name: e.target.value}))}
+          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Dragon's Lair Games" />
+      </div>
+      <div>
+        <label className="block text-sm text-stone-400 mb-1">Street Address *</label>
+        <input value={form.address} onChange={e => setForm((f: any) => ({...f, address: e.target.value}))}
+          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 123 Main St" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm text-stone-400 mb-1">City / Region *</label>
+          <input value={form.city} onChange={e => setForm((f: any) => ({...f, city: e.target.value}))}
+            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Austin, TX" />
+        </div>
+        <div>
+          <label className="block text-sm text-stone-400 mb-1">Phone</label>
+          <input value={form.phone} onChange={e => setForm((f: any) => ({...f, phone: e.target.value}))}
+            className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. (512) 555-0100" />
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm text-stone-400 mb-1">Website</label>
+        <input value={form.website} onChange={e => setForm((f: any) => ({...f, website: e.target.value}))}
+          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. https://yourstore.com" />
+      </div>
+      <div>
+        <label className="block text-sm text-stone-400 mb-1">About Your Store</label>
+        <textarea value={form.description} onChange={e => setForm((f: any) => ({...f, description: e.target.value}))} rows={3}
+          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
+          placeholder="Tell players what makes your store special..." />
+      </div>
+      <div>
+        <label className="block text-sm text-stone-400 mb-2">Open Days</label>
+        <div className="flex flex-wrap gap-1.5">
+          {DAYS.map(d => (
+            <button key={d} onClick={() => toggleDay(d)}
+              className={`text-xs px-3 py-1 rounded-full border transition-all ${form.open_days.includes(d) ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{d}</button>
+          ))}
+        </div>
+      </div>
+      <div>
+        <label className="block text-sm text-stone-400 mb-1">Hours</label>
+        <input value={form.hours} onChange={e => setForm((f: any) => ({...f, hours: e.target.value}))}
+          className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 10am - 9pm" />
+      </div>
+      <div>
+        <label className="block text-sm text-stone-400 mb-2">Games We Carry</label>
+        {gameSections.map(([label, key, color]) => (
+          <div key={key} className="mb-3">
+            <p className="text-xs text-stone-500 mb-1.5">{label}</p>
+            <div className="flex flex-wrap gap-1.5">
+              {GAMES[key as keyof typeof GAMES].map(g => (
+                <button key={g} onClick={() => toggleGame(g)}
+                  className={`text-xs px-3 py-1 rounded-full border transition-all ${form.games_carried.includes(g)
+                    ? color === "amber" ? "bg-amber-800 border-amber-600 text-amber-100"
+                    : color === "blue" ? "bg-blue-800 border-blue-600 text-blue-100"
+                    : "bg-red-800 border-red-600 text-red-100"
+                    : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+      <button onClick={handleSave} disabled={!form.name || !form.address || !form.city || saving}
+        className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
+        {saving ? "Saving..." : "Save Store Profile →"}
+      </button>
+    </div>
+  );
+}
+
+// ── Store Dashboard ────────────────────────────────────────────────────────────
+function StoreDashboard({ storeProfile, onEditProfile, onSignOut }: { storeProfile: any; onEditProfile: () => void; onSignOut: () => void }) {
+  const [players, setPlayers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPlayers = async () => {
+      const { data } = await supabase.from("players").select("*").eq("visible_to_stores", true).order("created_at", { ascending: false });
+      setPlayers(data || []);
+      setLoading(false);
+    };
+    fetchPlayers();
+    const interval = setInterval(fetchPlayers, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const nearbyPlayers = storeProfile?.city
+    ? players.filter(p => p.city?.toLowerCase().includes(storeProfile.city.split(",")[0].toLowerCase()))
+    : players;
+
+  const gameInterestMap: Record<string, number> = {};
+  players.forEach(p => { p.games?.forEach((g: string) => { gameInterestMap[g] = (gameInterestMap[g] || 0) + 1; }); });
+  const topGames = Object.entries(gameInterestMap).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  return (
+    <div className="min-h-screen bg-stone-950 text-white" style={{fontFamily:"'Georgia',serif"}}>
+      <header className="sticky top-0 z-40 bg-stone-950/95 backdrop-blur border-b border-stone-800">
+        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+          <div>
+            <h1 className="text-xl font-bold text-amber-300" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>⚔️ TableFinder</h1>
+            <p className="text-xs text-stone-500">Store Dashboard</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={onEditProfile} className="flex items-center gap-2 bg-stone-800 hover:bg-stone-700 px-3 py-2 rounded-lg transition-colors">
+              <span>🏪</span>
+              <span className="text-sm text-amber-200">{storeProfile?.name || "Set up Store"}</span>
+            </button>
+            <button onClick={onSignOut} className="text-xs text-stone-500 hover:text-stone-300 px-2 py-2 transition-colors">Sign Out</button>
+          </div>
+        </div>
+      </header>
+      <main className="max-w-2xl mx-auto px-4 py-5 space-y-6">
+        <div className="bg-stone-800 border border-amber-900 rounded-2xl p-5">
+          <div className="flex items-start justify-between mb-3">
+            <div>
+              <h2 className="text-xl font-bold text-amber-200" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>{storeProfile?.name}</h2>
+              <p className="text-sm text-stone-400 mt-0.5">📍 {storeProfile?.address}, {storeProfile?.city}</p>
+            </div>
+            <span className="text-3xl">🏪</span>
+          </div>
+          {storeProfile?.description && <p className="text-sm text-stone-300 mb-3 italic">"{storeProfile.description}"</p>}
+          <div className="flex flex-wrap gap-3 text-xs text-stone-400">
+            {storeProfile?.phone && <span>📞 {storeProfile.phone}</span>}
+            {storeProfile?.hours && <span>🕐 {storeProfile.hours}</span>}
+            {storeProfile?.website && <a href={storeProfile.website} target="_blank" rel="noopener noreferrer" className="text-amber-400 hover:underline">🌐 Website</a>}
+          </div>
+          {storeProfile?.open_days?.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-3">
+              {storeProfile.open_days.map((d: string) => <span key={d} className="text-xs px-2 py-0.5 bg-stone-700 text-stone-300 rounded-full">{d}</span>)}
+            </div>
+          )}
+          {storeProfile?.games_carried?.length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs text-stone-500 mb-1.5">Games we carry:</p>
+              <div className="flex flex-wrap gap-1">{storeProfile.games_carried.map((g: string) => <GameTag key={g} game={g} />)}</div>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">📊 Community Insights</h3>
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <div className="bg-stone-800 border border-stone-700 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-amber-300">{players.length}</div>
+              <div className="text-xs text-stone-400 mt-1">Players opted in to store visibility</div>
+            </div>
+            <div className="bg-stone-800 border border-stone-700 rounded-xl p-4 text-center">
+              <div className="text-2xl font-bold text-amber-300">{nearbyPlayers.length}</div>
+              <div className="text-xs text-stone-400 mt-1">Players in your area</div>
+            </div>
+          </div>
+          {topGames.length > 0 && (
+            <div className="bg-stone-800 border border-stone-700 rounded-xl p-4">
+              <p className="text-xs text-stone-400 mb-3">Most popular games among opted-in players:</p>
+              <div className="space-y-2">
+                {topGames.map(([game, count]) => (
+                  <div key={game} className="flex items-center gap-2">
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-0.5">
+                        <span className="text-xs text-stone-200">{game}</span>
+                        <span className="text-xs text-stone-500">{count} player{count !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div className="w-full h-1 bg-stone-700 rounded-full">
+                        <div className="h-full bg-amber-600 rounded-full" style={{width:`${(count / (topGames[0][1] as number)) * 100}%`}} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">🎲 Players Near You</h3>
+          {loading && <LoadingSpinner />}
+          {!loading && nearbyPlayers.length === 0 && (
+            <div className="text-center py-10 text-stone-500">
+              <div className="text-3xl mb-2">🎲</div>
+              <p className="text-sm">No players in your area have opted in to store visibility yet.</p>
+              <p className="text-xs mt-1 text-stone-600">As more players join TableFinder, they will appear here.</p>
+            </div>
+          )}
+          <div className="space-y-2">
+            {nearbyPlayers.map(p => (
+              <div key={p.id} className="bg-stone-800 border border-stone-700 rounded-xl p-3 flex items-center gap-3">
+                <AvatarEl emoji={p.avatar} size="sm" online={p.online} />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-amber-100">{p.name}</span>
+                    <span className="text-xs text-stone-500">{p.experience}</span>
+                  </div>
+                  <p className="text-xs text-stone-400">📍 {p.city}</p>
+                  <div className="flex flex-wrap gap-1 mt-1">{p.games?.slice(0,4).map((g: string) => <GameTag key={g} game={g} />)}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
+
+// ── Player Profile Setup ───────────────────────────────────────────────────────
 function ProfileSetup({ existing, onSave }: { existing: any; onSave: (form: any) => Promise<void> }) {
-  const [form, setForm] = useState(existing || { name:"", city:"", avatar:"🎲", games:[], experience:"Casual", bio:"", date_of_birth:"" });
+  const [form, setForm] = useState(existing || { name:"", city:"", avatar:"🎲", games:[], experience:"Casual", bio:"", date_of_birth:"", visible_to_stores:false });
   const [saving, setSaving] = useState(false);
   const AVATARS = ["🎲","🧙","⚔️","🐉","🃏","🎭","🦇","🌟","🐙","🔮","⚡","🛡️","🗡️","🏹","🎯","🧌"];
   const toggle = (game: string) => setForm((f: any) => ({...f, games: f.games.includes(game) ? f.games.filter((g: string) => g !== game) : [...f.games, game]}));
@@ -227,6 +481,17 @@ function ProfileSetup({ existing, onSave }: { existing: any; onSave: (form: any)
           className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
           placeholder="Tell others what kind of player you are..." />
       </div>
+      <div className="bg-stone-800 border border-stone-700 rounded-xl p-4">
+        <div className="flex items-start gap-3">
+          <input type="checkbox" id="storeVisible" checked={form.visible_to_stores || false}
+            onChange={e => setForm((f: any) => ({...f, visible_to_stores: e.target.checked}))}
+            className="mt-1 accent-amber-500 w-4 h-4 flex-shrink-0" />
+          <label htmlFor="storeVisible" className="cursor-pointer">
+            <p className="text-sm text-amber-200 font-medium">Let local game stores see my profile</p>
+            <p className="text-xs text-stone-400 mt-0.5">Store owners can see your name, games, and city to help them stock games and plan events their community wants. Your contact info is never shared.</p>
+          </label>
+        </div>
+      </div>
       <button onClick={handleSave} disabled={!form.name || !form.city || !form.games.length || !form.date_of_birth || saving}
         className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 disabled:cursor-not-allowed text-white font-bold rounded-lg transition-colors">
         {saving ? "Saving..." : "Save Profile →"}
@@ -268,9 +533,7 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
       if (myProfile) {
         const { data: blockData } = await supabase.from("blocks").select("blocked_id").eq("blocker_id", myProfile.id);
         setBlockedIds((blockData || []).map((b: any) => b.blocked_id));
-        const { data: friendData } = await supabase.from("friendships")
-          .select("*")
-          .or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`);
+        const { data: friendData } = await supabase.from("friendships").select("*").or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`);
         setFriendships(friendData || []);
       }
       setLoading(false);
@@ -319,17 +582,9 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
   const submitReport = async () => {
     if (!myProfile || !reportTarget || !reportReason) return;
     setReportSaving(true);
-    await supabase.from("reports").insert([{
-      reporter_id: myProfile.id, reported_id: reportTarget.id,
-      reason: reportReason, details: reportDetails, status: "pending"
-    }]);
-    await supabase.functions.invoke("report-notification", {
-      body: { reporterName: myProfile.name, reportedName: reportTarget.name, reportedEmail: null, reason: reportReason, details: reportDetails }
-    });
-    setReportTarget(null);
-    setReportReason("");
-    setReportDetails("");
-    setReportSaving(false);
+    await supabase.from("reports").insert([{ reporter_id: myProfile.id, reported_id: reportTarget.id, reason: reportReason, details: reportDetails, status: "pending" }]);
+    await supabase.functions.invoke("report-notification", { body: { reporterName: myProfile.name, reportedName: reportTarget.name, reportedEmail: null, reason: reportReason, details: reportDetails } });
+    setReportTarget(null); setReportReason(""); setReportDetails(""); setReportSaving(false);
     alert("Report submitted. Thank you for helping keep TableFinder safe.");
   };
 
@@ -345,7 +600,6 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
     .filter(p => !search || p.name.toLowerCase().includes(search.toLowerCase()) || p.games?.some((g: string) => g.toLowerCase().includes(search.toLowerCase())));
 
   if (loading) return <LoadingSpinner />;
-
   const REPORT_REASONS = ["Harassment","Inappropriate behavior","Spam","Underage user","Other"];
 
   return (
@@ -353,13 +607,7 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
       <input value={search} onChange={e => setSearch(e.target.value)}
         className="w-full mb-4 bg-stone-800 border border-stone-700 rounded-lg px-4 py-2 text-white text-sm focus:border-amber-500 outline-none"
         placeholder="🔍 Search players or games..." />
-      {filtered.length === 0 && (
-        <div className="text-center text-stone-500 py-16">
-          <div className="text-4xl mb-3">👥</div>
-          <p>No other players yet.</p>
-          <p className="text-sm mt-1">Invite friends to join!</p>
-        </div>
-      )}
+      {filtered.length === 0 && <div className="text-center text-stone-500 py-16"><div className="text-4xl mb-3">👥</div><p>No other players yet.</p><p className="text-sm mt-1">Invite friends to join!</p></div>}
       <div className="space-y-3">
         {filtered.map(p => {
           const avg = getAverage(p.id);
@@ -392,19 +640,12 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
                 <div className="flex flex-col gap-1.5">
                   <button onClick={() => onMessage(p)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-amber-800 text-stone-200 rounded-lg transition-colors whitespace-nowrap">Message</button>
                   {myProfile && (
-                    friendStatus === "friends" ? (
-                      <span className="text-xs px-3 py-1.5 bg-green-900/40 text-green-400 rounded-lg text-center whitespace-nowrap">Friends ✓</span>
-                    ) : friendStatus === "pending_sent" ? (
-                      <span className="text-xs px-3 py-1.5 bg-stone-700 text-stone-500 rounded-lg text-center whitespace-nowrap">Requested</span>
-                    ) : friendStatus === "pending_received" ? (
-                      <span className="text-xs px-3 py-1.5 bg-amber-900/40 text-amber-400 rounded-lg text-center whitespace-nowrap">Wants to connect</span>
-                    ) : (
-                      <button onClick={() => sendFriendRequest(p.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-green-900 text-stone-400 hover:text-green-300 rounded-lg transition-colors whitespace-nowrap">+ Friend</button>
-                    )
+                    friendStatus === "friends" ? <span className="text-xs px-3 py-1.5 bg-green-900/40 text-green-400 rounded-lg text-center whitespace-nowrap">Friends ✓</span>
+                    : friendStatus === "pending_sent" ? <span className="text-xs px-3 py-1.5 bg-stone-700 text-stone-500 rounded-lg text-center whitespace-nowrap">Requested</span>
+                    : friendStatus === "pending_received" ? <span className="text-xs px-3 py-1.5 bg-amber-900/40 text-amber-400 rounded-lg text-center whitespace-nowrap">Wants to connect</span>
+                    : <button onClick={() => sendFriendRequest(p.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-green-900 text-stone-400 hover:text-green-300 rounded-lg transition-colors whitespace-nowrap">+ Friend</button>
                   )}
-                  <button onClick={() => blockPlayer(p.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors whitespace-nowrap">
-                    {blockedIds.includes(p.id) ? "Unblock" : "Block"}
-                  </button>
+                  <button onClick={() => blockPlayer(p.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors whitespace-nowrap">{blockedIds.includes(p.id) ? "Unblock" : "Block"}</button>
                   <button onClick={() => setReportTarget(p)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-orange-900 text-stone-400 hover:text-orange-300 rounded-lg transition-colors whitespace-nowrap">Report</button>
                 </div>
               </div>
@@ -419,23 +660,15 @@ function PlayersTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
             <div>
               <label className="block text-sm text-stone-400 mb-2">Reason *</label>
               <div className="flex flex-wrap gap-2">
-                {REPORT_REASONS.map(r => (
-                  <button key={r} onClick={() => setReportReason(r)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${reportReason === r ? "bg-red-900 border-red-600 text-red-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{r}</button>
-                ))}
+                {REPORT_REASONS.map(r => <button key={r} onClick={() => setReportReason(r)} className={`text-xs px-3 py-1.5 rounded-full border transition-all ${reportReason === r ? "bg-red-900 border-red-600 text-red-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{r}</button>)}
               </div>
             </div>
             <div>
               <label className="block text-sm text-stone-400 mb-1">Additional details</label>
-              <textarea value={reportDetails} onChange={e => setReportDetails(e.target.value)} rows={3}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
-                placeholder="Describe what happened..." />
+              <textarea value={reportDetails} onChange={e => setReportDetails(e.target.value)} rows={3} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Describe what happened..." />
             </div>
             <p className="text-xs text-stone-500">Your report is anonymous. Our team will review it and take appropriate action.</p>
-            <button onClick={submitReport} disabled={!reportReason || reportSaving}
-              className="w-full py-3 bg-red-800 hover:bg-red-700 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">
-              {reportSaving ? "Submitting..." : "Submit Report"}
-            </button>
+            <button onClick={submitReport} disabled={!reportReason || reportSaving} className="w-full py-3 bg-red-800 hover:bg-red-700 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{reportSaving ? "Submitting..." : "Submit Report"}</button>
           </div>
         </Modal>
       )}
@@ -454,8 +687,7 @@ function EventsTab({ myProfile }: { myProfile: any }) {
   useEffect(() => {
     const fetchEvents = async () => {
       const { data } = await supabase.from("events").select("*").order("date", { ascending: true });
-      setEvents(data || []);
-      setLoading(false);
+      setEvents(data || []); setLoading(false);
     };
     fetchEvents();
     const interval = setInterval(fetchEvents, 3000);
@@ -487,16 +719,8 @@ function EventsTab({ myProfile }: { myProfile: any }) {
 
   return (
     <div>
-      <button onClick={() => setShowCreate(true)}
-        className="w-full mb-4 py-3 border-2 border-dashed border-stone-600 hover:border-amber-600 text-stone-400 hover:text-amber-400 rounded-xl transition-colors text-sm font-medium">
-        + Host a New Event
-      </button>
-      {events.length === 0 && (
-        <div className="text-center text-stone-500 py-16">
-          <div className="text-4xl mb-3">📅</div>
-          <p>No events yet — be the first to host one!</p>
-        </div>
-      )}
+      <button onClick={() => setShowCreate(true)} className="w-full mb-4 py-3 border-2 border-dashed border-stone-600 hover:border-amber-600 text-stone-400 hover:text-amber-400 rounded-xl transition-colors text-sm font-medium">+ Host a New Event</button>
+      {events.length === 0 && <div className="text-center text-stone-500 py-16"><div className="text-4xl mb-3">📅</div><p>No events yet — be the first to host one!</p></div>}
       <div className="space-y-3">
         {events.map(e => {
           const spotsLeft = e.max_players - (e.joined?.length || 0);
@@ -513,9 +737,7 @@ function EventsTab({ myProfile }: { myProfile: any }) {
                   {e.description && <p className="text-xs text-stone-500 mt-2 italic">{e.description}</p>}
                 </div>
                 <div className="text-right flex-shrink-0">
-                  <div className={`text-xs mb-2 font-medium ${spotsLeft===0?"text-red-400":spotsLeft<=2?"text-yellow-400":"text-green-400"}`}>
-                    {spotsLeft===0?"Full":`${spotsLeft} spot${spotsLeft!==1?"s":""} left`}
-                  </div>
+                  <div className={`text-xs mb-2 font-medium ${spotsLeft===0?"text-red-400":spotsLeft<=2?"text-yellow-400":"text-green-400"}`}>{spotsLeft===0?"Full":`${spotsLeft} spot${spotsLeft!==1?"s":""} left`}</div>
                   <button onClick={() => joinEvent(e)} disabled={spotsLeft===0&&!joined}
                     className={`text-xs px-3 py-1.5 rounded-lg transition-colors font-medium ${joined?"bg-amber-800 text-amber-200 hover:bg-red-900 hover:text-red-200":"bg-amber-700 hover:bg-amber-600 text-white disabled:opacity-40 disabled:cursor-not-allowed"}`}>
                     {joined ? "Leave" : "Join"}
@@ -529,51 +751,19 @@ function EventsTab({ myProfile }: { myProfile: any }) {
       {showCreate && (
         <Modal title="Host a New Event" onClose={() => setShowCreate(false)}>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-stone-400 mb-1">Event Title *</label>
-              <input value={form.title} onChange={e => setForm(f => ({...f,title:e.target.value}))}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. D&D One-Shot: The Lost Vault" />
-            </div>
+            <div><label className="block text-sm text-stone-400 mb-1">Event Title *</label><input value={form.title} onChange={e => setForm(f => ({...f,title:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. D&D One-Shot: The Lost Vault" /></div>
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm text-stone-400 mb-1">Date *</label>
-                <input type="date" value={form.date} onChange={e => setForm(f => ({...f,date:e.target.value}))}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" />
-              </div>
-              <div>
-                <label className="block text-sm text-stone-400 mb-1">Time</label>
-                <input value={form.time} onChange={e => setForm(f => ({...f,time:e.target.value}))}
-                  className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 6:00 PM" />
-              </div>
+              <div><label className="block text-sm text-stone-400 mb-1">Date *</label><input type="date" value={form.date} onChange={e => setForm(f => ({...f,date:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" /></div>
+              <div><label className="block text-sm text-stone-400 mb-1">Time</label><input value={form.time} onChange={e => setForm(f => ({...f,time:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. 6:00 PM" /></div>
             </div>
-            <div>
-              <label className="block text-sm text-stone-400 mb-1">Location</label>
-              <input value={form.location} onChange={e => setForm(f => ({...f,location:e.target.value}))}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="Address or 'Online (Discord)'" />
-            </div>
+            <div><label className="block text-sm text-stone-400 mb-1">Location</label><input value={form.location} onChange={e => setForm(f => ({...f,location:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="Address or 'Online (Discord)'" /></div>
             <div>
               <label className="block text-sm text-stone-400 mb-2">Games</label>
-              <div className="flex flex-wrap gap-1.5">
-                {[...GAMES.ttrpg,...GAMES.tcg,...GAMES.wargames].map(g => (
-                  <button key={g} onClick={() => toggleGame(g)}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.games.includes(g)?"bg-amber-800 border-amber-600 text-amber-100":"border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>
-                ))}
-              </div>
+              <div className="flex flex-wrap gap-1.5">{[...GAMES.ttrpg,...GAMES.tcg,...GAMES.wargames].map(g => <button key={g} onClick={() => toggleGame(g)} className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.games.includes(g)?"bg-amber-800 border-amber-600 text-amber-100":"border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>)}</div>
             </div>
-            <div>
-              <label className="block text-sm text-stone-400 mb-1">Max Players: {form.max_players}</label>
-              <input type="range" min={2} max={20} value={form.max_players} onChange={e => setForm(f => ({...f,max_players:+e.target.value}))} className="w-full accent-amber-500" />
-            </div>
-            <div>
-              <label className="block text-sm text-stone-400 mb-1">Description</label>
-              <textarea value={form.description} onChange={e => setForm(f => ({...f,description:e.target.value}))} rows={3}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
-                placeholder="Describe the event, experience requirements, etc." />
-            </div>
-            <button onClick={createEvent} disabled={!form.title||!form.date||saving}
-              className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">
-              {saving ? "Creating..." : "Create Event"}
-            </button>
+            <div><label className="block text-sm text-stone-400 mb-1">Max Players: {form.max_players}</label><input type="range" min={2} max={20} value={form.max_players} onChange={e => setForm(f => ({...f,max_players:+e.target.value}))} className="w-full accent-amber-500" /></div>
+            <div><label className="block text-sm text-stone-400 mb-1">Description</label><textarea value={form.description} onChange={e => setForm(f => ({...f,description:e.target.value}))} rows={3} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Describe the event, experience requirements, etc." /></div>
+            <button onClick={createEvent} disabled={!form.title||!form.date||saving} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{saving ? "Creating..." : "Create Event"}</button>
           </div>
         </Modal>
       )}
@@ -584,76 +774,116 @@ function EventsTab({ myProfile }: { myProfile: any }) {
 // ── Stores Tab ─────────────────────────────────────────────────────────────────
 function StoresTab() {
   const [stores, setStores] = useState<any[]>([]);
+  const [storeProfiles, setStoreProfiles] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string|null>(null);
   const [searched, setSearched] = useState(false);
+  const [viewProfile, setViewProfile] = useState<any>(null);
+
+  useEffect(() => {
+    supabase.from("stores").select("*").order("created_at", { ascending: false }).then(({ data }) => setStoreProfiles(data || []));
+  }, []);
 
   const searchByCoords = async (lat: number, lng: number) => {
     try {
-      const res = await fetch("/api/stores", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ lat, lng })
-      });
+      const res = await fetch("/api/stores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ lat, lng }) });
       const data = await res.json();
-      if (data.places && data.places.length > 0) {
-        setStores(data.places);
-        setSearched(true);
-      } else {
-        setError("No stores found nearby. Try searching a nearby city instead.");
-      }
-    } catch {
-      setError("Couldn't fetch stores. Try again!");
-    }
+      if (data.places && data.places.length > 0) { setStores(data.places); setSearched(true); }
+      else setError("No stores found nearby. Try searching a nearby city instead.");
+    } catch { setError("Couldn't fetch stores. Try again!"); }
     setLoading(false);
   };
 
   const findByGPS = () => {
-    setLoading(true);
-    setError(null);
-    setStores([]);
+    setLoading(true); setError(null); setStores([]);
     navigator.geolocation.getCurrentPosition(
-      (position) => searchByCoords(position.coords.latitude, position.coords.longitude),
+      (pos) => searchByCoords(pos.coords.latitude, pos.coords.longitude),
       () => { setError("Location access denied. Please enable location permissions."); setLoading(false); }
     );
   };
 
   const renderStars = (rating: number) => "⭐".repeat(Math.floor(rating)) + (rating % 1 >= 0.5 ? "✨" : "");
+  const matchedProfile = (storeName: string) => storeProfiles.find(sp => storeName.toLowerCase().includes(sp.name.toLowerCase()) || sp.name.toLowerCase().includes(storeName.toLowerCase()));
 
   return (
     <div>
-      <div className="bg-stone-800 border border-amber-900 rounded-xl p-5 mb-6">
-        <h3 className="font-bold text-amber-200 mb-1" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>🏪 Find Local Game Stores</h3>
-        <p className="text-sm text-stone-400 mb-4">Discover tabletop game stores, card shops, and hobby stores near you.</p>
-        <button onClick={findByGPS} disabled={loading}
-          className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-white font-bold rounded-lg transition-colors">
-          {loading ? "🔍 Searching nearby stores..." : "📍 Find Stores Near Me"}
-        </button>
-        {error && <p className="text-red-400 text-sm mt-3 text-center">{error}</p>}
-      </div>
-      {searched && stores.length === 0 && (
-        <div className="text-center text-stone-500 py-16">
-          <div className="text-4xl mb-3">🏪</div>
-          <p>No game stores found nearby.</p>
+      {storeProfiles.length > 0 && (
+        <div className="mb-6">
+          <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">🏪 On TableFinder</h3>
+          <div className="space-y-2">
+            {storeProfiles.map(sp => (
+              <button key={sp.id} onClick={() => setViewProfile(sp)} className="w-full text-left bg-stone-800 border border-amber-900 rounded-xl p-4 hover:border-amber-600 transition-colors">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="font-semibold text-amber-100">{sp.name}</span>
+                      <span className="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded-full">TableFinder Store</span>
+                    </div>
+                    <p className="text-xs text-stone-400">📍 {sp.address}, {sp.city}</p>
+                    {sp.hours && <p className="text-xs text-stone-400">🕐 {sp.hours}</p>}
+                    {sp.games_carried?.length > 0 && <div className="flex flex-wrap gap-1 mt-2">{sp.games_carried.slice(0,4).map((g: string) => <GameTag key={g} game={g} />)}</div>}
+                  </div>
+                  <span className="text-stone-400 text-sm">→</span>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       )}
+      <div className="bg-stone-800 border border-amber-900 rounded-xl p-5 mb-6">
+        <h3 className="font-bold text-amber-200 mb-1" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>Find Local Game Stores</h3>
+        <p className="text-sm text-stone-400 mb-4">Discover tabletop game stores, card shops, and hobby stores near you.</p>
+        <button onClick={findByGPS} disabled={loading} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-50 text-white font-bold rounded-lg transition-colors">{loading ? "🔍 Searching nearby stores..." : "📍 Find Stores Near Me"}</button>
+        {error && <p className="text-red-400 text-sm mt-3 text-center">{error}</p>}
+      </div>
+      {searched && stores.length === 0 && <div className="text-center text-stone-500 py-16"><div className="text-4xl mb-3">🏪</div><p>No game stores found nearby.</p></div>}
       <div className="space-y-3">
-        {stores.map((store: any) => (
-          <a key={store.id} href={store.googleMapsUri} target="_blank" rel="noopener noreferrer"
-            className="block bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-amber-100 mb-1">{store.displayName?.text}</h3>
-                <p className="text-xs text-stone-400 mb-2">📍 {store.formattedAddress}</p>
-                <div className="flex items-center gap-3">
+        {stores.map((store: any) => {
+          const profile = matchedProfile(store.displayName?.text || "");
+          return profile ? (
+            <button key={store.id} onClick={() => setViewProfile(profile)} className="w-full text-left bg-stone-800 border border-amber-700 rounded-xl p-4 hover:border-amber-500 transition-colors">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1"><h3 className="font-semibold text-amber-100">{store.displayName?.text}</h3><span className="text-xs bg-amber-900 text-amber-300 px-2 py-0.5 rounded-full">On TableFinder</span></div>
+                  <p className="text-xs text-stone-400 mb-2">📍 {store.formattedAddress}</p>
                   {store.rating && <span className="text-xs text-stone-300">{renderStars(store.rating)} {store.rating} ({store.userRatingCount} reviews)</span>}
                 </div>
+                <span className="text-stone-400 text-sm flex-shrink-0">→</span>
               </div>
-              <span className="text-stone-400 text-sm flex-shrink-0">→</span>
-            </div>
-          </a>
-        ))}
+            </button>
+          ) : (
+            <a key={store.id} href={store.googleMapsUri} target="_blank" rel="noopener noreferrer" className="block bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-amber-100 mb-1">{store.displayName?.text}</h3>
+                  <p className="text-xs text-stone-400 mb-2">📍 {store.formattedAddress}</p>
+                  {store.rating && <span className="text-xs text-stone-300">{renderStars(store.rating)} {store.rating} ({store.userRatingCount} reviews)</span>}
+                </div>
+                <span className="text-stone-400 text-sm flex-shrink-0">→</span>
+              </div>
+            </a>
+          );
+        })}
       </div>
+      {viewProfile && (
+        <Modal title={viewProfile.name} onClose={() => setViewProfile(null)}>
+          <div className="space-y-4">
+            <div>
+              <p className="text-xs text-stone-400">📍 {viewProfile.address}, {viewProfile.city}</p>
+              {viewProfile.phone && <p className="text-xs text-stone-400 mt-1">📞 {viewProfile.phone}</p>}
+              {viewProfile.hours && <p className="text-xs text-stone-400 mt-1">🕐 {viewProfile.hours}</p>}
+              {viewProfile.website && <a href={viewProfile.website} target="_blank" rel="noopener noreferrer" className="text-xs text-amber-400 hover:underline mt-1 block">🌐 {viewProfile.website}</a>}
+            </div>
+            {viewProfile.description && <p className="text-sm text-stone-300 italic">"{viewProfile.description}"</p>}
+            {viewProfile.open_days?.length > 0 && (
+              <div><p className="text-xs text-stone-500 mb-1.5">Open days:</p><div className="flex flex-wrap gap-1">{viewProfile.open_days.map((d: string) => <span key={d} className="text-xs px-2 py-0.5 bg-stone-700 text-stone-300 rounded-full">{d}</span>)}</div></div>
+            )}
+            {viewProfile.games_carried?.length > 0 && (
+              <div><p className="text-xs text-stone-500 mb-1.5">Games we carry:</p><div className="flex flex-wrap gap-1">{viewProfile.games_carried.map((g: string) => <GameTag key={g} game={g} />)}</div></div>
+            )}
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }
@@ -669,8 +899,7 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
   useEffect(() => {
     const fetchPosts = async () => {
       const { data } = await supabase.from("lfg_posts").select("*").order("created_at", { ascending: false });
-      setPosts(data || []);
-      setLoading(false);
+      setPosts(data || []); setLoading(false);
     };
     fetchPosts();
     const interval = setInterval(fetchPosts, 3000);
@@ -680,14 +909,9 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
   const createPost = async () => {
     if (!form.game || !form.title || !myProfile) return;
     setSaving(true);
-    const { data } = await supabase.from("lfg_posts").insert([{
-      player_id: myProfile.id, player_name: myProfile.name, player_avatar: myProfile.avatar,
-      game: form.game, title: form.title, body: form.body,
-    }]).select();
+    const { data } = await supabase.from("lfg_posts").insert([{ player_id: myProfile.id, player_name: myProfile.name, player_avatar: myProfile.avatar, game: form.game, title: form.title, body: form.body }]).select();
     if (data) setPosts(p => [data[0], ...p]);
-    setShowCreate(false);
-    setForm({ game:"", title:"", body:"" });
-    setSaving(false);
+    setShowCreate(false); setForm({ game:"", title:"", body:"" }); setSaving(false);
   };
 
   const deletePost = async (postId: string) => {
@@ -707,17 +931,8 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
 
   return (
     <div>
-      <button onClick={() => setShowCreate(true)}
-        className="w-full mb-4 py-3 border-2 border-dashed border-stone-600 hover:border-amber-600 text-stone-400 hover:text-amber-400 rounded-xl transition-colors text-sm font-medium">
-        + Post a LFG Request
-      </button>
-      {posts.length === 0 && (
-        <div className="text-center text-stone-500 py-16">
-          <div className="text-4xl mb-3">📣</div>
-          <p>No LFG posts yet.</p>
-          <p className="text-sm mt-1">Be the first to post!</p>
-        </div>
-      )}
+      <button onClick={() => setShowCreate(true)} className="w-full mb-4 py-3 border-2 border-dashed border-stone-600 hover:border-amber-600 text-stone-400 hover:text-amber-400 rounded-xl transition-colors text-sm font-medium">+ Post a LFG Request</button>
+      {posts.length === 0 && <div className="text-center text-stone-500 py-16"><div className="text-4xl mb-3">📣</div><p>No LFG posts yet.</p><p className="text-sm mt-1">Be the first to post!</p></div>}
       <div className="space-y-3">
         {posts.map(post => (
           <div key={post.id} className="bg-stone-800 border border-stone-700 rounded-xl p-4 hover:border-amber-700 transition-colors">
@@ -725,20 +940,11 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
               <AvatarEl emoji={post.player_avatar || "🎲"} />
               <div className="flex-1 min-w-0">
                 <span className="font-semibold text-amber-100 text-sm">{post.title}</span>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <GameTag game={post.game} />
-                  <span className="text-xs text-stone-500">by {post.player_name} • {timeAgo(post.created_at)}</span>
-                </div>
+                <div className="flex items-center gap-2 mt-0.5"><GameTag game={post.game} /><span className="text-xs text-stone-500">by {post.player_name} • {timeAgo(post.created_at)}</span></div>
                 {post.body && <p className="text-xs text-stone-400 mt-2">{post.body}</p>}
                 <div className="flex gap-2 mt-3">
-                  {myProfile && post.player_id !== myProfile.id && (
-                    <button onClick={() => onMessage({ id: post.player_id, name: post.player_name, avatar: post.player_avatar, games: [post.game] })}
-                      className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg transition-colors">Reply</button>
-                  )}
-                  {myProfile && post.player_id === myProfile.id && (
-                    <button onClick={() => deletePost(post.id)}
-                      className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors">Delete</button>
-                  )}
+                  {myProfile && post.player_id !== myProfile.id && <button onClick={() => onMessage({ id: post.player_id, name: post.player_name, avatar: post.player_avatar, games: [post.game] })} className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg transition-colors">Reply</button>}
+                  {myProfile && post.player_id === myProfile.id && <button onClick={() => deletePost(post.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors">Delete</button>}
                 </div>
               </div>
             </div>
@@ -748,31 +954,10 @@ function LFGTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: any) 
       {showCreate && (
         <Modal title="Post a LFG Request" onClose={() => setShowCreate(false)}>
           <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-stone-400 mb-2">Game *</label>
-              <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">
-                {[...GAMES.ttrpg, ...GAMES.tcg, ...GAMES.wargames].map(g => (
-                  <button key={g} onClick={() => setForm(f => ({...f, game:g}))}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.game===g ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm text-stone-400 mb-1">Title *</label>
-              <input value={form.title} onChange={e => setForm(f => ({...f,title:e.target.value}))}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none"
-                placeholder="e.g. Looking for 2 players for D&D campaign" />
-            </div>
-            <div>
-              <label className="block text-sm text-stone-400 mb-1">Details</label>
-              <textarea value={form.body} onChange={e => setForm(f => ({...f,body:e.target.value}))} rows={4}
-                className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none"
-                placeholder="Describe what you're looking for, schedule, experience level, etc." />
-            </div>
-            <button onClick={createPost} disabled={!form.game || !form.title || saving}
-              className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">
-              {saving ? "Posting..." : "Post LFG Request"}
-            </button>
+            <div><label className="block text-sm text-stone-400 mb-2">Game *</label><div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto">{[...GAMES.ttrpg, ...GAMES.tcg, ...GAMES.wargames].map(g => <button key={g} onClick={() => setForm(f => ({...f, game:g}))} className={`text-xs px-2.5 py-1 rounded-full border transition-all ${form.game===g ? "bg-amber-800 border-amber-600 text-amber-100" : "border-stone-600 text-stone-400 hover:border-stone-400"}`}>{g}</button>)}</div></div>
+            <div><label className="block text-sm text-stone-400 mb-1">Title *</label><input value={form.title} onChange={e => setForm(f => ({...f,title:e.target.value}))} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none" placeholder="e.g. Looking for 2 players for D&D campaign" /></div>
+            <div><label className="block text-sm text-stone-400 mb-1">Details</label><textarea value={form.body} onChange={e => setForm(f => ({...f,body:e.target.value}))} rows={4} className="w-full bg-stone-800 border border-stone-700 rounded-lg px-3 py-2 text-white text-sm focus:border-amber-500 outline-none resize-none" placeholder="Describe what you're looking for, schedule, experience level, etc." /></div>
+            <button onClick={createPost} disabled={!form.game || !form.title || saving} className="w-full py-3 bg-amber-700 hover:bg-amber-600 disabled:opacity-40 text-white font-bold rounded-lg transition-colors">{saving ? "Posting..." : "Post LFG Request"}</button>
           </div>
         </Modal>
       )}
@@ -787,55 +972,30 @@ function MatchmakingTab({ myProfile }: { myProfile: any }) {
   const [error, setError] = useState<string|null>(null);
   const [allPlayers, setAllPlayers] = useState<any[]>([]);
 
-  useEffect(() => {
-    supabase.from("players").select("*").then(({ data }) => setAllPlayers(data || []));
-  }, []);
+  useEffect(() => { supabase.from("players").select("*").then(({ data }) => setAllPlayers(data || [])); }, []);
 
   const findMatches = async () => {
     if (!myProfile) return;
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     const others = allPlayers.filter(p => p.user_id !== myProfile.user_id);
-    const prompt = `You are a tabletop gaming matchmaker. A player named ${myProfile.name} is looking for others to play with.
-Their profile:
-- Games: ${myProfile.games?.join(", ")}
-- Experience: ${myProfile.experience}
-- City: ${myProfile.city}
-- Bio: ${myProfile.bio || "None provided"}
-Other available players:
-${others.map((p: any) => `- ${p.name} (${p.experience}): plays ${p.games?.join(", ")}. Bio: ${p.bio||"N/A"}`).join("\n")}
-Return a JSON array of the top 3 best player matches. For each match include: name (string), reason (1-2 sentence explanation), compatibility (number 1-100), sharedGames (array of shared game names). Return ONLY the JSON array, no markdown.`;
+    const prompt = `You are a tabletop gaming matchmaker. A player named ${myProfile.name} is looking for others to play with.\nTheir profile:\n- Games: ${myProfile.games?.join(", ")}\n- Experience: ${myProfile.experience}\n- City: ${myProfile.city}\n- Bio: ${myProfile.bio || "None provided"}\nOther available players:\n${others.map((p: any) => `- ${p.name} (${p.experience}): plays ${p.games?.join(", ")}. Bio: ${p.bio||"N/A"}`).join("\n")}\nReturn a JSON array of the top 3 best player matches. For each match include: name (string), reason (1-2 sentence explanation), compatibility (number 1-100), sharedGames (array of shared game names). Return ONLY the JSON array, no markdown.`;
     try {
-      const res = await fetch("/api/matchmaking", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt })
-      });
+      const res = await fetch("/api/matchmaking", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prompt }) });
       const data = await res.json();
       const text = data.content?.map((c: any) => c.text||"").join("").replace(/```json|```/g,"").trim();
       setMatches(JSON.parse(text));
-    } catch {
-      setError("Couldn't reach the matchmaking oracle. Try again!");
-    }
+    } catch { setError("Couldn't reach the matchmaking oracle. Try again!"); }
     setLoading(false);
   };
 
-  if (!myProfile) return (
-    <div className="text-center py-16 text-stone-400">
-      <div className="text-4xl mb-4">🔮</div>
-      <p>Set up your profile first to use AI matchmaking.</p>
-    </div>
-  );
+  if (!myProfile) return <div className="text-center py-16 text-stone-400"><div className="text-4xl mb-4">🔮</div><p>Set up your profile first to use AI matchmaking.</p></div>;
 
   return (
     <div>
       <div className="bg-stone-800 border border-amber-900 rounded-xl p-5 mb-6">
         <h3 className="font-bold text-amber-200 mb-1" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>The Oracle of Compatible Players</h3>
         <p className="text-sm text-stone-400 mb-4">Our AI analyzes game preferences, experience levels, and play styles to find your ideal gaming companions.</p>
-        <button onClick={findMatches} disabled={loading}
-          className="w-full py-3 bg-gradient-to-r from-amber-800 to-amber-700 hover:from-amber-700 hover:to-amber-600 text-white font-bold rounded-lg transition-all disabled:opacity-50">
-          {loading ? "⟳ Consulting the Oracle..." : "✦ Find My Best Matches"}
-        </button>
+        <button onClick={findMatches} disabled={loading} className="w-full py-3 bg-gradient-to-r from-amber-800 to-amber-700 hover:from-amber-700 hover:to-amber-600 text-white font-bold rounded-lg transition-all disabled:opacity-50">{loading ? "⟳ Consulting the Oracle..." : "✦ Find My Best Matches"}</button>
         {error && <p className="text-red-400 text-sm mt-3 text-center">{error}</p>}
       </div>
       {matches && (
@@ -850,9 +1010,7 @@ Return a JSON array of the top 3 best player matches. For each match include: na
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-semibold text-amber-100">{m.name}</span>
                       <div className="flex items-center gap-1.5">
-                        <div className="w-16 h-1.5 bg-stone-700 rounded-full overflow-hidden">
-                          <div className="h-full bg-amber-500 rounded-full" style={{width:`${m.compatibility}%`}} />
-                        </div>
+                        <div className="w-16 h-1.5 bg-stone-700 rounded-full overflow-hidden"><div className="h-full bg-amber-500 rounded-full" style={{width:`${m.compatibility}%`}} /></div>
                         <span className="text-xs text-amber-400 font-medium">{m.compatibility}%</span>
                       </div>
                     </div>
@@ -880,19 +1038,14 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
   useEffect(() => {
     if (!myProfile) return;
     const fetchConversations = async () => {
-      const { data } = await supabase.from("messages")
-        .select("*")
-        .or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`)
-        .order("created_at", { ascending: false });
+      const { data } = await supabase.from("messages").select("*").or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`).order("created_at", { ascending: false });
       if (data) {
         const convMap: Record<string, any> = {};
         data.forEach((msg: any) => {
           const otherId = msg.sender_id === myProfile.id ? msg.receiver_id : msg.sender_id;
           const otherName = msg.sender_id === myProfile.id ? msg.receiver_name : msg.sender_name;
           const otherAvatar = msg.sender_id === myProfile.id ? msg.receiver_avatar : msg.sender_avatar;
-          if (!convMap[otherId]) {
-            convMap[otherId] = { id: otherId, name: otherName, avatar: otherAvatar, lastMessage: msg.text };
-          }
+          if (!convMap[otherId]) convMap[otherId] = { id: otherId, name: otherName, avatar: otherAvatar, lastMessage: msg.text };
         });
         setConversations(Object.values(convMap));
       }
@@ -906,10 +1059,7 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
   useEffect(() => {
     if (!active || !myProfile) return;
     const fetchMessages = async () => {
-      const { data } = await supabase.from("messages")
-        .select("*")
-        .or(`and(sender_id.eq.${myProfile.id},receiver_id.eq.${active}),and(sender_id.eq.${active},receiver_id.eq.${myProfile.id})`)
-        .order("created_at", { ascending: true });
+      const { data } = await supabase.from("messages").select("*").or(`and(sender_id.eq.${myProfile.id},receiver_id.eq.${active}),and(sender_id.eq.${active},receiver_id.eq.${myProfile.id})`).order("created_at", { ascending: true });
       setMessages(data || []);
     };
     fetchMessages();
@@ -920,49 +1070,29 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
   const send = async () => {
     if (!input.trim() || !active || !myProfile) return;
     const activeConv = conversations.find(c => c.id === active);
-    await supabase.from("messages").insert([{
-      sender_id: myProfile.id, receiver_id: active,
-      sender_name: myProfile.name, receiver_name: activeConv?.name,
-      sender_avatar: myProfile.avatar, receiver_avatar: activeConv?.avatar,
-      text: input,
-    }]);
+    await supabase.from("messages").insert([{ sender_id: myProfile.id, receiver_id: active, sender_name: myProfile.name, receiver_name: activeConv?.name, sender_avatar: myProfile.avatar, receiver_avatar: activeConv?.avatar, text: input }]);
     setInput("");
   };
 
   const formatTime = (timestamp: string) => new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
-  if (!myProfile) return (
-    <div className="text-center py-16 text-stone-400">
-      <div className="text-4xl mb-4">💬</div>
-      <p>Set up your profile to send messages.</p>
-    </div>
-  );
+  if (!myProfile) return <div className="text-center py-16 text-stone-400"><div className="text-4xl mb-4">💬</div><p>Set up your profile to send messages.</p></div>;
 
   return (
     <div className="flex gap-3 h-96">
       <div className="w-1/3 space-y-1 overflow-y-auto">
         {loading && <p className="text-stone-500 text-sm text-center py-4">Loading...</p>}
-        {!loading && conversations.length === 0 && <p className="text-stone-500 text-sm text-center py-8">No messages yet.<br/>Message a player from the Players tab!</p>}
+        {!loading && conversations.length === 0 && <p className="text-stone-500 text-sm text-center py-8">No messages yet. Message a player from the Players tab!</p>}
         {conversations.map(c => (
-          <button key={c.id} onClick={() => setActive(c.id)}
-            className={`w-full text-left p-3 rounded-lg transition-colors ${active===c.id?"bg-amber-900":"bg-stone-800 hover:bg-stone-700"}`}>
-            <div className="flex items-center gap-2">
-              <span className="text-lg">{c.avatar}</span>
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-amber-100 truncate">{c.name}</p>
-                <p className="text-xs text-stone-400 truncate">{c.lastMessage}</p>
-              </div>
-            </div>
+          <button key={c.id} onClick={() => setActive(c.id)} className={`w-full text-left p-3 rounded-lg transition-colors ${active===c.id?"bg-amber-900":"bg-stone-800 hover:bg-stone-700"}`}>
+            <div className="flex items-center gap-2"><span className="text-lg">{c.avatar}</span><div className="min-w-0"><p className="text-sm font-medium text-amber-100 truncate">{c.name}</p><p className="text-xs text-stone-400 truncate">{c.lastMessage}</p></div></div>
           </button>
         ))}
       </div>
       <div className="flex-1 flex flex-col bg-stone-800 rounded-xl overflow-hidden border border-stone-700">
         {active ? (
           <>
-            <div className="p-3 border-b border-stone-700 flex items-center gap-2">
-              <span className="text-lg">{conversations.find(c => c.id === active)?.avatar}</span>
-              <span className="font-medium text-amber-100 text-sm">{conversations.find(c => c.id === active)?.name}</span>
-            </div>
+            <div className="p-3 border-b border-stone-700 flex items-center gap-2"><span className="text-lg">{conversations.find(c => c.id === active)?.avatar}</span><span className="font-medium text-amber-100 text-sm">{conversations.find(c => c.id === active)?.name}</span></div>
             <div className="flex-1 overflow-y-auto p-3 space-y-2">
               {messages.map((m: any) => (
                 <div key={m.id} className={`flex ${m.sender_id===myProfile.id?"justify-end":"justify-start"}`}>
@@ -974,8 +1104,7 @@ function MessagesTab({ myProfile }: { myProfile: any }) {
               ))}
             </div>
             <div className="p-3 border-t border-stone-700 flex gap-2">
-              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key==="Enter"&&send()}
-                className="flex-1 bg-stone-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-1 focus:ring-amber-500" placeholder="Send a message..." />
+              <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key==="Enter"&&send()} className="flex-1 bg-stone-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:ring-1 focus:ring-amber-500" placeholder="Send a message..." />
               <button onClick={send} className="px-3 py-2 bg-amber-700 hover:bg-amber-600 text-white rounded-lg text-sm transition-colors">→</button>
             </div>
           </>
@@ -997,14 +1126,10 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
     if (!myProfile) return;
     const fetchData = async () => {
       const [{ data: fsData }, { data: playerData }] = await Promise.all([
-        supabase.from("friendships")
-          .select("*")
-          .or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`),
+        supabase.from("friendships").select("*").or(`sender_id.eq.${myProfile.id},receiver_id.eq.${myProfile.id}`),
         supabase.from("players").select("*"),
       ]);
-      setFriendships(fsData || []);
-      setPlayers(playerData || []);
-      setLoading(false);
+      setFriendships(fsData || []); setPlayers(playerData || []); setLoading(false);
     };
     fetchData();
     const interval = setInterval(fetchData, 5000);
@@ -1015,39 +1140,27 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
     await supabase.from("friendships").update({ status: "accepted" }).eq("id", friendshipId);
     setFriendships(fs => fs.map(f => f.id === friendshipId ? {...f, status: "accepted"} : f));
   };
-
   const declineRequest = async (friendshipId: string) => {
     await supabase.from("friendships").delete().eq("id", friendshipId);
     setFriendships(fs => fs.filter(f => f.id !== friendshipId));
   };
-
   const removeFriend = async (friendshipId: string) => {
     await supabase.from("friendships").delete().eq("id", friendshipId);
     setFriendships(fs => fs.filter(f => f.id !== friendshipId));
   };
 
   const getPlayer = (id: string) => players.find(p => p.id === id);
-
   const incoming = friendships.filter(f => f.receiver_id === myProfile?.id && f.status === "pending");
   const accepted = friendships.filter(f => f.status === "accepted");
 
-  if (!myProfile) return (
-    <div className="text-center py-16 text-stone-400">
-      <div className="text-4xl mb-4">🤝</div>
-      <p>Set up your profile to manage friends.</p>
-    </div>
-  );
-
+  if (!myProfile) return <div className="text-center py-16 text-stone-400"><div className="text-4xl mb-4">🤝</div><p>Set up your profile to manage friends.</p></div>;
   if (loading) return <LoadingSpinner />;
 
   return (
     <div className="space-y-6">
-      {/* Incoming Requests */}
       {incoming.length > 0 && (
         <div>
-          <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">
-            ⚔️ Friend Requests ({incoming.length})
-          </h3>
+          <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">⚔️ Friend Requests ({incoming.length})</h3>
           <div className="space-y-2">
             {incoming.map(fs => {
               const sender = getPlayer(fs.sender_id);
@@ -1058,19 +1171,11 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-amber-100">{sender.name}</p>
                     <p className="text-xs text-stone-400">{sender.city} • {sender.experience}</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {sender.games?.slice(0, 3).map((g: string) => <GameTag key={g} game={g} />)}
-                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1">{sender.games?.slice(0,3).map((g: string) => <GameTag key={g} game={g} />)}</div>
                   </div>
                   <div className="flex flex-col gap-1.5 flex-shrink-0">
-                    <button onClick={() => acceptRequest(fs.id)}
-                      className="text-xs px-3 py-1.5 bg-green-800 hover:bg-green-700 text-green-100 rounded-lg transition-colors font-medium">
-                      Accept ✓
-                    </button>
-                    <button onClick={() => declineRequest(fs.id)}
-                      className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors">
-                      Decline
-                    </button>
+                    <button onClick={() => acceptRequest(fs.id)} className="text-xs px-3 py-1.5 bg-green-800 hover:bg-green-700 text-green-100 rounded-lg transition-colors font-medium">Accept ✓</button>
+                    <button onClick={() => declineRequest(fs.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors">Decline</button>
                   </div>
                 </div>
               );
@@ -1078,18 +1183,10 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
           </div>
         </div>
       )}
-
-      {/* Friends List */}
       <div>
-        <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">
-          🛡️ Your Party ({accepted.length})
-        </h3>
+        <h3 className="text-sm font-semibold text-amber-300 mb-3 uppercase tracking-wider">🛡️ Your Party ({accepted.length})</h3>
         {accepted.length === 0 ? (
-          <div className="text-center py-12 text-stone-500">
-            <div className="text-4xl mb-3">🤝</div>
-            <p>No friends yet.</p>
-            <p className="text-sm mt-1">Head to the Players tab and hit <span className="text-amber-400">+ Friend</span> on someone's card!</p>
-          </div>
+          <div className="text-center py-12 text-stone-500"><div className="text-4xl mb-3">🤝</div><p>No friends yet.</p><p className="text-sm mt-1">Head to the Players tab and hit <span className="text-amber-400">+ Friend</span> on someone's card!</p></div>
         ) : (
           <div className="space-y-2">
             {accepted.map(fs => {
@@ -1103,24 +1200,14 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-amber-100">{friend.name}</p>
-                        <span className={`text-xs font-medium ${friend.online ? "text-green-400" : "text-stone-500"}`}>
-                          {friend.online ? "● Online" : "○ Offline"}
-                        </span>
+                        <span className={`text-xs font-medium ${friend.online ? "text-green-400" : "text-stone-500"}`}>{friend.online ? "● Online" : "○ Offline"}</span>
                       </div>
                       <p className="text-xs text-stone-400">{friend.city} • {friend.experience}</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {friend.games?.slice(0, 4).map((g: string) => <GameTag key={g} game={g} />)}
-                      </div>
+                      <div className="flex flex-wrap gap-1 mt-1">{friend.games?.slice(0,4).map((g: string) => <GameTag key={g} game={g} />)}</div>
                     </div>
                     <div className="flex flex-col gap-1.5 flex-shrink-0">
-                      <button onClick={() => onMessage(friend)}
-                        className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg transition-colors whitespace-nowrap">
-                        Message
-                      </button>
-                      <button onClick={() => removeFriend(fs.id)}
-                        className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors whitespace-nowrap">
-                        Remove
-                      </button>
+                      <button onClick={() => onMessage(friend)} className="text-xs px-3 py-1.5 bg-amber-700 hover:bg-amber-600 text-white rounded-lg transition-colors whitespace-nowrap">Message</button>
+                      <button onClick={() => removeFriend(fs.id)} className="text-xs px-3 py-1.5 bg-stone-700 hover:bg-red-900 text-stone-400 hover:text-red-300 rounded-lg transition-colors whitespace-nowrap">Remove</button>
                     </div>
                   </div>
                 </div>
@@ -1137,17 +1224,26 @@ function FriendsTab({ myProfile, onMessage }: { myProfile: any; onMessage: (p: a
 export default function App() {
   const [authUser, setAuthUser] = useState<any>(null);
   const [myProfile, setMyProfile] = useState<any>(null);
+  const [myStoreProfile, setMyStoreProfile] = useState<any>(null);
+  const [accountType, setAccountType] = useState("player");
   const [authLoading, setAuthLoading] = useState(true);
   const [tab, setTab] = useState("players");
   const [showProfile, setShowProfile] = useState(false);
+  const [showStoreProfile, setShowStoreProfile] = useState(false);
   const [msgTarget, setMsgTarget] = useState<any>(null);
   const [msgText, setMsgText] = useState("");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
+        const type = session.user.user_metadata?.account_type || "player";
         setAuthUser(session.user);
-        loadProfile(session.user.id).finally(() => setAuthLoading(false));
+        setAccountType(type);
+        if (type === "store") {
+          loadStoreProfile(session.user.id).finally(() => setAuthLoading(false));
+        } else {
+          loadProfile(session.user.id).finally(() => setAuthLoading(false));
+        }
       } else {
         setAuthLoading(false);
       }
@@ -1155,11 +1251,13 @@ export default function App() {
 
     const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        const type = session.user.user_metadata?.account_type || "player";
         setAuthUser(session.user);
-        loadProfile(session.user.id);
+        setAccountType(type);
+        if (type === "store") loadStoreProfile(session.user.id);
+        else loadProfile(session.user.id);
       } else {
-        setAuthUser(null);
-        setMyProfile(null);
+        setAuthUser(null); setMyProfile(null); setMyStoreProfile(null); setAccountType("player");
       }
     });
     return () => authListener.subscription.unsubscribe();
@@ -1170,9 +1268,15 @@ export default function App() {
       const { data } = await supabase.from("players").select("*").eq("user_id", userId).maybeSingle();
       if (data) { setMyProfile(data); setShowProfile(false); }
       else { setMyProfile(null); setShowProfile(true); }
-    } catch {
-      setShowProfile(false);
-    }
+    } catch { setShowProfile(false); }
+  };
+
+  const loadStoreProfile = async (userId: string): Promise<void> => {
+    try {
+      const { data } = await supabase.from("stores").select("*").eq("user_id", userId).maybeSingle();
+      if (data) { setMyStoreProfile(data); setShowStoreProfile(false); }
+      else { setMyStoreProfile(null); setShowStoreProfile(true); }
+    } catch { setShowStoreProfile(false); }
   };
 
   const saveProfile = async (form: any) => {
@@ -1190,11 +1294,25 @@ export default function App() {
     setShowProfile(false);
   };
 
+  const saveStoreProfile = async (form: any) => {
+    if (!authUser) return;
+    const storeData = { ...form, user_id: authUser.id };
+    if (myStoreProfile?.id) {
+      const { data } = await supabase.from("stores").update(storeData).eq("id", myStoreProfile.id).select();
+      if (data?.[0]) setMyStoreProfile(data[0]);
+    } else {
+      const { data } = await supabase.from("stores").insert([storeData]).select();
+      if (data?.[0]) setMyStoreProfile(data[0]);
+    }
+    setShowStoreProfile(false);
+  };
+
   const handleSignOut = async () => {
     await supabase.auth.signOut();
-    setAuthUser(null);
-    setMyProfile(null);
+    setAuthUser(null); setMyProfile(null); setMyStoreProfile(null); setAccountType("player");
   };
+
+  const handleAuth = (user: any, type: string) => { setAuthUser(user); setAccountType(type); };
 
   const startConversation = async (player: any) => {
     if (!myProfile) return;
@@ -1204,9 +1322,7 @@ export default function App() {
       sender_avatar: myProfile.avatar, receiver_avatar: player.avatar,
       text: msgText || `Hey! I saw your profile. Want to play ${player.games?.[0]}?`,
     }]);
-    setMsgTarget(null);
-    setMsgText("");
-    setTab("messages");
+    setMsgTarget(null); setMsgText(""); setTab("messages");
   };
 
   const TABS = [
@@ -1221,15 +1337,40 @@ export default function App() {
 
   if (authLoading) return (
     <div className="min-h-screen bg-stone-950 flex items-center justify-center">
-      <div className="text-center">
-        <div className="text-5xl mb-4">⚔️</div>
-        <p className="text-stone-400">Loading TableFinder...</p>
-      </div>
+      <div className="text-center"><div className="text-5xl mb-4">⚔️</div><p className="text-stone-400">Loading TableFinder...</p></div>
     </div>
   );
 
-  if (!authUser) return <AuthScreen onAuth={setAuthUser} />;
+  if (!authUser) return <AuthScreen onAuth={handleAuth} />;
 
+  // ── Store Account View ───────────────────────────────────────────────────────
+  if (accountType === "store") {
+    if (!myStoreProfile) return (
+      <div className="min-h-screen bg-stone-950 text-white" style={{fontFamily:"'Georgia',serif"}}>
+        <header className="sticky top-0 z-40 bg-stone-950/95 backdrop-blur border-b border-stone-800">
+          <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
+            <h1 className="text-xl font-bold text-amber-300" style={{fontFamily:"'Palatino Linotype',Palatino,serif"}}>⚔️ TableFinder</h1>
+            <button onClick={handleSignOut} className="text-xs text-stone-500 hover:text-stone-300 px-2 py-2 transition-colors">Sign Out</button>
+          </div>
+        </header>
+        <main className="max-w-2xl mx-auto px-4 py-5">
+          <StoreProfileSetup existing={null} onSave={saveStoreProfile} />
+        </main>
+      </div>
+    );
+    return (
+      <>
+        <StoreDashboard storeProfile={myStoreProfile} onEditProfile={() => setShowStoreProfile(true)} onSignOut={handleSignOut} />
+        {showStoreProfile && (
+          <Modal title="Edit Store Profile" onClose={() => setShowStoreProfile(false)}>
+            <StoreProfileSetup existing={myStoreProfile} onSave={saveStoreProfile} />
+          </Modal>
+        )}
+      </>
+    );
+  }
+
+  // ── Player Account View ──────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-stone-950 text-white" style={{fontFamily:"'Georgia',serif"}}>
       <header className="sticky top-0 z-40 bg-stone-950/95 backdrop-blur border-b border-stone-800">
